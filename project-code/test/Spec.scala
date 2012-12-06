@@ -67,6 +67,14 @@ class MappingSpec extends Specification {
       val result = mapping.ok("hello")
       contentType(result) must beSome("application/json")
     }
+    "take '*/*' and produce anything" in {
+      implicit val request = FakeRequest(
+        "GET", "/", FakeHeaders(Seq(
+          "Accept" -> Seq("*/*"))), "")
+      val result = mapping.ok("hello")
+      status(result) must not be_==(NOT_ACCEPTABLE)
+      contentType(result) must beSome
+    }
     "take 'application/json' and produce a json response" in {
       implicit val request = FakeRequest(
         "GET", "/", FakeHeaders(Seq(
@@ -80,6 +88,13 @@ class MappingSpec extends Specification {
           "Accept" -> Seq("text/xml"))), "")
       val result = mapping.ok("hello")
       contentType(result) must beSome("text/xml")
+    }
+    "fail with 'text/plain'" in {
+      implicit val request = FakeRequest(
+        "GET", "/", FakeHeaders(Seq(
+          "Accept" -> Seq("text/plain"))), "")
+      val result = mapping.ok("hello")
+      status(result) must be_==(NOT_ACCEPTABLE)
     }
   }
 }
