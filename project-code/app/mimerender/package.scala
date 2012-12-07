@@ -6,7 +6,7 @@ import play.api.mvc.{Result, Results, Request}
 package object mimerender {
 
   trait Mapping[A] {
-    def typeStrings: Seq[String]
+    def typeStrings: Iterable[String]
     def status(status: Int)(value: A)(implicit request: Request[Any]) = {
       val acceptHeader = request.headers.get("Accept")
       val typeString: Option[String] = acceptHeader match {
@@ -20,36 +20,35 @@ package object mimerender {
         .getOrElse(Results.NotAcceptable(""))
     }
     def getResult(status: Int, typeString: String): A => Result
-
-    def ok(value: A)(implicit request: Request[Any]) = status(200)(value)
   }
 
-  class SimpleMapping[A, B](val transform: (A => B),
-      val writeable: Writeable[B]) extends Mapping[A] {
+  class SimpleMapping[A, B](
+      customTypeStrings: Option[Iterable[String]],
+      transform: (A => B))
+      (implicit writeable: Writeable[B]) extends Mapping[A] {
 
-    override def typeStrings =
-      writeable.contentType.map(_.split(';').head).toSeq
+    override val typeStrings = customTypeStrings.getOrElse(
+      writeable.contentType.map(_.split(';').head).toSeq)
+
+    require(!typeStrings.isEmpty)
 
     override def getResult(status: Int, typeString: String) = { value: A =>
-      Results.Status(status)(transform(value))(writeable)
+      Results.Status(status)(transform(value))(writeable).as(typeString)
     }
   }
 
-  class CompositeMapping[A](val mappings: Mapping[A]*) extends Mapping[A] {
-    val mappingsByTypeString = (for {
+  class CompositeMapping[A](mappings: Mapping[A]*) extends Mapping[A] {
+    private val typeStringMappingPairs = (for {
       mapping <- mappings
       typeString <- mapping.typeStrings
-    } yield (typeString -> mapping)).toMap
+    } yield (typeString -> mapping))
 
-    override def typeStrings = mappingsByTypeString.keys.toSeq
+    private val mappingsByTypeString = typeStringMappingPairs.toMap
+
+    override val typeStrings = typeStringMappingPairs.map(_._1)
 
     override def getResult(status: Int, typeString: String) =
       mappingsByTypeString(typeString).getResult(status, typeString)
-  }
-
-  object Mapping {
-    def apply[A, B](transform: (A => B))(implicit writeable: Writeable[B]) =
-      new SimpleMapping(transform, writeable)
   }
 
 }
