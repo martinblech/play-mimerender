@@ -32,14 +32,18 @@ package object mimerender {
     override val typeStrings = customTypeStrings.getOrElse(
       writeable.contentType.map(_.split(';').head).toSeq).reverse
 
-    require(!typeStrings.isEmpty)
-
     override def getResult(status: Int, typeString: String) = { value: A =>
       Results.Status(status)(transform(value))(writeable).as(typeString)
     }
+
+    def -: (typeString: String) =
+      new SimpleMapping(Some(Seq(typeString)), transform)(writeable)
+
+    def -: (typeStrings: Seq[String]) =
+      new SimpleMapping(Some(typeStrings), transform)(writeable)
   }
 
-  class CompositeMapping[A](mappings: Mapping[A]*) extends Mapping[A] {
+  class CompositeMapping[A](mappings: Seq[Mapping[A]]) extends Mapping[A] {
     private val typeStringMappingPairs = (for {
       mapping <- mappings
       typeString <- mapping.typeStrings
@@ -52,5 +56,18 @@ package object mimerender {
     override def getResult(status: Int, typeString: String) =
       mappingsByTypeString(typeString).getResult(status, typeString)
   }
+
+  def mapping[A](m: Mapping[A]*) = m match {
+    case Seq(x) => x
+    case m => new CompositeMapping(m)
+  }
+
+  implicit def transformToMapping[A, B](transform: A => B)
+      (implicit writeable: Writeable[B]) =
+    new SimpleMapping(None, transform)(writeable)
+
+  implicit def transformAndWritableToMapping[A, B](
+      pair: (A => B, Writeable[B])) =
+    new SimpleMapping(None, pair._1)(pair._2)
 
 }

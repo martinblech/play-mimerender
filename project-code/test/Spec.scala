@@ -20,15 +20,6 @@ class MappingSpec extends Specification {
         { _: Any => <root/> })
       mapping.typeStrings must be_==(Seq("application/xml"))
     }
-    "fail when the Writeable has no typeString" in {
-      new SimpleMapping(None, { _: Any => Array[Byte]() })(
-        new Writeable(identity, None)
-      ) must throwA[IllegalArgumentException]
-    }
-    "fail when the explicit typeStrings is empty" in {
-      new SimpleMapping(Some(Nil),
-        { _: Any => <root/> }) must throwA[IllegalArgumentException]
-    }
   }
   // request helpers
   val emptyRequest = FakeRequest()
@@ -159,8 +150,8 @@ class MappingSpec extends Specification {
   }
 
   // composite JSON/XML/TXT/HTML mapping
-  val compositeMapping = new CompositeMapping(
-    jsonMapping, xmlMapping, txtMapping, htmlMapping)
+  val compositeMapping = new CompositeMapping(Seq(
+    jsonMapping, xmlMapping, txtMapping, htmlMapping))
   "a composite json/xml mapping" should {
     val mapping = compositeMapping
     "choose the first option (json) when accept header is empty" in {
@@ -212,6 +203,49 @@ class MappingSpec extends Specification {
       implicit val request = requestWithAccept("application/octet-stream")
       val result = mapping.status(200)("hello")
       status(result) must be_==(NOT_ACCEPTABLE)
+    }
+  }
+
+  "the mapping constructor DSL" should {
+    "construct a simple mapping" in {
+      val m = mapping (
+        {s: String => <root><message>{s}</message></root>}
+      )
+      m must beAnInstanceOf[SimpleMapping[String, scala.xml.NodeSeq]]
+      m.typeStrings must contain("text/xml")
+    }
+    "construct a mapping with a custom writeable" in {
+      val m = mapping (
+        (identity[Array[Byte]]_,
+         new Writeable(identity[Array[Byte]], Some("application/octet-stream")))
+      )
+      m must beAnInstanceOf[SimpleMapping[Array[Byte], Array[Byte]]]
+      m.typeStrings must contain("application/octet-stream")
+    }
+    "construct a mapping with one custom typeString" in {
+      val m = mapping (
+        "application/xml" -: {s: String => <root><message>{s}</message></root>}
+      )
+      m must beAnInstanceOf[SimpleMapping[String, scala.xml.NodeSeq]]
+      m.typeStrings must contain("application/xml")
+    }
+    "construct a mapping with custom typeStrings" in {
+      val m = mapping (
+        Seq("application/xml", "text/xml") -:
+          {s: String => <root><message>{s}</message></root>}
+      )
+      m must beAnInstanceOf[SimpleMapping[String, scala.xml.NodeSeq]]
+      m.typeStrings must contain("application/xml")
+      m.typeStrings must contain("text/xml")
+    }
+    "construct a composite mapping" in {
+      val m = mapping (
+        "application/xml" -: {s: String => <root><message>{s}</message></root>},
+        "application/json" -: {s: String => Json.obj("message" -> s)}
+      )
+      m must beAnInstanceOf[CompositeMapping[String]]
+      m.typeStrings must contain("application/json")
+      m.typeStrings must contain("application/xml")
     }
   }
 }
