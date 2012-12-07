@@ -6,7 +6,8 @@ import play.api.mvc.{Result, Results, Request}
 package object mimerender {
 
   trait Mapping[A] {
-    def typeStrings: Iterable[String]
+    def typeStrings: Seq[String]
+    private lazy val defaultTypeString = typeStrings.reverse.head
     def status(status: Int)(value: A)(implicit request: Request[Any]) = {
       val acceptHeader = request.headers.get("Accept")
       val typeString: Option[String] = acceptHeader match {
@@ -14,21 +15,22 @@ package object mimerender {
           case "" => None
           case s => Option(s)
         }
-        case None => Some(typeStrings.head)
+        case None => Some(defaultTypeString)
       }
       typeString.map(getResult(status, _)(value))
-        .getOrElse(Results.NotAcceptable(""))
+        .getOrElse(Results.NotAcceptable("")) // TODO: some options for this
     }
-    def getResult(status: Int, typeString: String): A => Result
+    private[mimerender] def getResult(
+      status: Int, typeString: String): A => Result
   }
 
   class SimpleMapping[A, B](
-      customTypeStrings: Option[Iterable[String]],
+      customTypeStrings: Option[Seq[String]],
       transform: (A => B))
       (implicit writeable: Writeable[B]) extends Mapping[A] {
 
     override val typeStrings = customTypeStrings.getOrElse(
-      writeable.contentType.map(_.split(';').head).toSeq)
+      writeable.contentType.map(_.split(';').head).toSeq).reverse
 
     require(!typeStrings.isEmpty)
 
@@ -45,7 +47,7 @@ package object mimerender {
 
     private val mappingsByTypeString = typeStringMappingPairs.toMap
 
-    override val typeStrings = typeStringMappingPairs.map(_._1)
+    override val typeStrings = typeStringMappingPairs.map(_._1).reverse
 
     override def getResult(status: Int, typeString: String) =
       mappingsByTypeString(typeString).getResult(status, typeString)

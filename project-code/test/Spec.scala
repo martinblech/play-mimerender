@@ -10,7 +10,27 @@ import scala.xml._
 import mimerender._
 
 class MappingSpec extends Specification {
-  // helpers
+  "the SimpleMapping constructor" should {
+    "use the implicit Writeable's typeString by default" in {
+      val mapping = new SimpleMapping(None, { _: Any => <root/> })
+      mapping.typeStrings must be_==(Seq("text/xml"))
+    }
+    "override the Writeable's typeString when needed" in {
+      val mapping = new SimpleMapping(Some(Seq("application/xml")),
+        { _: Any => <root/> })
+      mapping.typeStrings must be_==(Seq("application/xml"))
+    }
+    "fail when the Writeable has no typeString" in {
+      new SimpleMapping(None, { _: Any => Array[Byte]() })(
+        new Writeable(identity, None)
+      ) must throwA[IllegalArgumentException]
+    }
+    "fail when the explicit typeStrings is empty" in {
+      new SimpleMapping(Some(Nil),
+        { _: Any => <root/> }) must throwA[IllegalArgumentException]
+    }
+  }
+  // request helpers
   val emptyRequest = FakeRequest()
   def requestWithAccept(accept: String) = FakeRequest(
     "GET", "/", FakeHeaders(Seq("Accept" -> Seq(accept))), "")
@@ -57,34 +77,101 @@ class MappingSpec extends Specification {
       mapping.typeStrings must contain("application/xml")
       mapping.typeStrings must contain("text/xml")
     }
-    "take an empty accept header and produce an application/xml response" in {
+    "take an empty accept and produce application/xml (first option)" in {
       implicit val request = emptyRequest
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("application/xml")
       val parsedContent = XML.loadString(contentAsString(result))
       (parsedContent \ "value").text must be_==("hello")
     }
-    "take application/xml and produce an application/xml response" in {
+    "take */* and produce application/xml (first option)" in {
+      implicit val request = requestWithAccept("*/*")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("application/xml")
+    }
+    "take text/* and produce text/xml" in {
+      implicit val request = requestWithAccept("text/*")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/xml")
+    }
+    "take application/xml and produce application/xml" in {
       implicit val request = requestWithAccept("application/xml")
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("application/xml")
     }
+    "fail with 'application/octet-stream'" in {
+      implicit val request = requestWithAccept("application/octet-stream")
+      val result = mapping.status(200)("hello")
+      status(result) must be_==(NOT_ACCEPTABLE)
+    }
   }
 
-  // composite JSON/XML mapping
-  val compositeMapping = new CompositeMapping(jsonMapping, xmlMapping)
+  // TXT Mapping with default typeString (provided by the implicit writeable)
+  val txtMapping = new SimpleMapping(None, identity[String])
+  "a txt mapping" should {
+    val mapping = txtMapping
+    "have 'text/plain' among the typeStrings" in {
+      mapping.typeStrings must contain("text/plain")
+    }
+    "take an empty accept header and produce an text/plain response" in {
+      implicit val request = emptyRequest
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/plain")
+      contentAsString(result) must be_==("hello")
+    }
+    "take text/plain and produce an text/plain response" in {
+      implicit val request = requestWithAccept("text/plain")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/plain")
+    }
+    "fail with 'application/octet-stream'" in {
+      implicit val request = requestWithAccept("application/octet-stream")
+      val result = mapping.status(200)("hello")
+      status(result) must be_==(NOT_ACCEPTABLE)
+    }
+  }
+
+  // HTML Mapping with default typeString (provided by the implicit writeable)
+  val htmlMapping = new SimpleMapping(None, { s: String =>
+    new play.api.templates.Html("<html><body>" + s + "</body></html>")
+  })
+  "a html mapping" should {
+    val mapping = htmlMapping
+    "have 'text/html' among the typeStrings" in {
+      mapping.typeStrings must contain("text/html")
+    }
+    "take an empty accept header and produce an text/html response" in {
+      implicit val request = emptyRequest
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/html")
+      contentAsString(result) must be_==("<html><body>hello</body></html>")
+    }
+    "take text/plain and produce an text/html response" in {
+      implicit val request = requestWithAccept("text/html")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/html")
+    }
+    "fail with 'application/octet-stream'" in {
+      implicit val request = requestWithAccept("application/octet-stream")
+      val result = mapping.status(200)("hello")
+      status(result) must be_==(NOT_ACCEPTABLE)
+    }
+  }
+
+  // composite JSON/XML/TXT/HTML mapping
+  val compositeMapping = new CompositeMapping(
+    jsonMapping, xmlMapping, txtMapping, htmlMapping)
   "a composite json/xml mapping" should {
     val mapping = compositeMapping
-    "take the first option (json) when accept header is empty" in {
+    "choose the first option (json) when accept header is empty" in {
       implicit val request = emptyRequest
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("application/json")
     }
-    "take '*/*' and produce something" in {
+    "choose the first option (json) when given '*/*'" in {
       implicit val request = requestWithAccept("*/*")
       val result = mapping.status(200)("hello")
-      status(result) must not be_==(NOT_ACCEPTABLE)
-      contentType(result) must beSome
+      contentType(result) must beSome("application/json")
     }
     "take 'application/json' and produce a json response" in {
       implicit val request = requestWithAccept("application/json")
@@ -111,8 +198,18 @@ class MappingSpec extends Specification {
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("application/json")
     }
-    "fail with 'text/plain'" in {
-      implicit val request = requestWithAccept("text/plain")
+    "take '*/plain' and produce text/plain" in {
+      implicit val request = requestWithAccept("*/plain")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/plain")
+    }
+    "take '*/html' and produce text/html" in {
+      implicit val request = requestWithAccept("*/html")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/html")
+    }
+    "fail with 'application/octet-stream'" in {
+      implicit val request = requestWithAccept("application/octet-stream")
       val result = mapping.status(200)("hello")
       status(result) must be_==(NOT_ACCEPTABLE)
     }
