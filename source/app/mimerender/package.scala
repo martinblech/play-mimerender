@@ -7,21 +7,26 @@ package object mimerender {
 
   trait Mapping[A] {
     def typeStrings: Seq[String]
-    private lazy val defaultTypeString = typeStrings.reverse.head
+    private lazy val defaultTypeString = typeStrings.head
     def status(status: Int)(value: A)(implicit request: Request[Any]) = {
       val acceptHeader = request.headers.get("Accept")
       val typeString: Option[String] = acceptHeader match {
-        case Some(s) => MIMEParse.bestMatch(typeStrings, s) match {
-          case "" => None
-          case s => Option(s)
-        }
+        case Some(acceptHeader) => bestMatch(acceptHeader)
         case None => Some(defaultTypeString)
       }
       typeString.map(getResult(status, _)(value))
-        .getOrElse(Results.NotAcceptable("")) // TODO: some options for this
+        .getOrElse(Results.NotAcceptable(notAcceptableBody(acceptHeader.get)))
     }
     private[mimerender] def getResult(
       status: Int, typeString: String): A => Result
+    private[mimerender] def bestMatch(acceptHeader: String): Option[String] =
+      MIMEParse.bestMatch(typeStrings.reverse, acceptHeader) match {
+        case "" => None
+        case s => Option(s)
+      }
+    private[mimerender] def notAcceptableBody(acceptHeader: String): String =
+      "None of the supported types (" + typeStrings + ") is acceptable for " +
+      "the header '" + acceptHeader + "'"
   }
 
   class SimpleMapping[A, B](
@@ -30,7 +35,7 @@ package object mimerender {
       (implicit writeable: Writeable[B]) extends Mapping[A] {
 
     override val typeStrings = customTypeStrings.getOrElse(
-      writeable.contentType.map(_.split(';').head).toSeq).reverse
+      writeable.contentType.map(_.split(';').head).toSeq)
 
     override def getResult(status: Int, typeString: String) = { value: A =>
       Results.Status(status)(transform(value))(writeable).as(typeString)
@@ -52,7 +57,7 @@ package object mimerender {
 
     private val mappingsByTypeString = typeStringMappingPairs.toMap
 
-    override val typeStrings = typeStringMappingPairs.map(_._1).reverse
+    override val typeStrings = typeStringMappingPairs.map(_._1)
 
     override def getResult(status: Int, typeString: String) =
       mappingsByTypeString(typeString).getResult(status, typeString)
