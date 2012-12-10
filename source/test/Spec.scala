@@ -57,6 +57,11 @@ class MappingSpec extends Specification {
       val result = mapping.status(200)("hello")
       status(result) must be_==(NOT_ACCEPTABLE)
     }
+    "have Accept within the Vary header" in {
+      implicit val request = requestWithAccept("*/*")
+      val result = mapping.status(200)("hello")
+      header("Vary", result).get must contain("Accept")
+    }
   }
 
   // XML Mapping with explicit typeStrings
@@ -203,6 +208,11 @@ class MappingSpec extends Specification {
       implicit val request = requestWithAccept("application/octet-stream")
       val result = mapping.status(200)("hello")
       status(result) must be_==(NOT_ACCEPTABLE)
+    }
+    "have Accept within the Vary header" in {
+      implicit val request = requestWithAccept("*/*")
+      val result = mapping.status(200)("hello")
+      header("Vary", result).get must contain("Accept")
     }
   }
 

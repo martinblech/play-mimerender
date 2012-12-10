@@ -34,6 +34,7 @@ package object mimerender {
 
     override def getResult(status: Int, typeString: String) = { value: A =>
       Results.Status(status)(transform(value))(writeable).as(typeString)
+        .withHeaders("Vary" -> "Accept")
     }
 
     def -: (typeString: String) =
