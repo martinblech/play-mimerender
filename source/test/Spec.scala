@@ -290,14 +290,14 @@ class MappingSpec extends Specification {
     }
     "construct a mapping with one custom typeString" in {
       val m = mapping (
-        "application/xml" -: {s: String => <root><message>{s}</message></root>}
+        "application/xml" -> {s: String => <root><message>{s}</message></root>}
       )
       m must beAnInstanceOf[SimpleMapping[String, scala.xml.NodeSeq]]
       m.typeStrings must contain("application/xml")
     }
     "construct a mapping with custom typeStrings" in {
       val m = mapping (
-        Seq("application/xml", "text/xml") -:
+        Seq("application/xml", "text/xml") ->
           {s: String => <root><message>{s}</message></root>}
       )
       m must beAnInstanceOf[SimpleMapping[String, scala.xml.NodeSeq]]
@@ -306,8 +306,8 @@ class MappingSpec extends Specification {
     }
     "construct a composite mapping" in {
       val m = mapping (
-        "application/xml" -: {s: String => <root><message>{s}</message></root>},
-        "application/json" -: {s: String => Json.obj("message" -> s)}
+        "application/xml" -> {s: String => <root><message>{s}</message></root>},
+        "application/json" -> {s: String => Json.obj("message" -> s)}
       )
       m must beAnInstanceOf[CompositeMapping[String]]
       m.typeStrings must contain("application/json")

@@ -66,10 +66,10 @@ package object mimerender {
         .withHeaders("Vary" -> "Accept")
     }
 
-    def -: (typeString: String) =
+    def withCustomTypeString(typeString: String) =
       new SimpleMapping(Some(Seq(typeString)), transform)(writeable)
 
-    def -: (typeStrings: Seq[String]) =
+    def withCustomTypeStrings(typeStrings: Seq[String]) =
       new SimpleMapping(Some(typeStrings), transform)(writeable)
   }
 
@@ -97,7 +97,23 @@ package object mimerender {
     new SimpleMapping(None, transform)(writeable)
 
   implicit def transformAndWritableToMapping[A, B](
-      pair: (A => B, Writeable[B])) =
-    new SimpleMapping(None, pair._1)(pair._2)
+      pair: (A => B, Writeable[B])) = {
+    val (transform, writeable) = pair
+    new SimpleMapping(None, transform)(writeable)
+  }
+
+  implicit def stringMappingPairToMapping[A, B](
+      pair: (String, A => B))(
+      implicit conv: (A => B) => SimpleMapping[A, B]) = {
+    val (typeString, mapping) = pair
+    mapping withCustomTypeString typeString
+  }
+
+  implicit def stringSeqMappingPairToMapping[A, B](
+      pair: (Seq[String], A => B))(
+      implicit conv: (A => B) => SimpleMapping[A, B]) = {
+    val (typeStrings, mapping) = pair
+    mapping withCustomTypeStrings typeStrings
+  }
 
 }
