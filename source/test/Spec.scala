@@ -64,6 +64,33 @@ class MappingSpec extends Specification {
     }
   }
 
+  "a json mapping with notAcceptableFallback" should {
+    val mapping = jsonMapping.notAcceptableFallback
+
+    "produce a json response even with a 'text/plain' accept" in {
+      implicit val request = requestWithAccept("text/plain")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("application/json")
+      val parsedContent = Json.parse(contentAsString(result))
+      (parsedContent \ "value").as[String] must be_==("hello")
+    }
+  }
+
+  "a json mapping with a custom notAcceptableBody" should {
+    val mapping = jsonMapping notAcceptableBody { (acceptString, typeStrings) =>
+      "bad: " + acceptString + " supported: " + typeStrings.mkString(", ")
+    }
+
+    "produce a custom not acceptable body for a 'text/x-whatever' accept" in {
+      implicit val request = requestWithAccept("text/x-whatever")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/plain")
+      status(result) must be_==(NOT_ACCEPTABLE)
+      contentAsString(result) must be_==(
+        "bad: text/x-whatever supported: application/json")
+    }
+  }
+
   // XML Mapping with explicit typeStrings
   val xmlMapping = new SimpleMapping(Some(Seq("application/xml", "text/xml")),
     { s: String => <root><value>{s}</value></root> })
@@ -157,7 +184,7 @@ class MappingSpec extends Specification {
   // composite JSON/XML/TXT/HTML mapping
   val compositeMapping = new CompositeMapping(Seq(
     jsonMapping, xmlMapping, txtMapping, htmlMapping))
-  "a composite json/xml mapping" should {
+  "a composite json/xml/txt/html mapping" should {
     val mapping = compositeMapping
     "choose the first option (json) when accept header is empty" in {
       implicit val request = emptyRequest
@@ -213,6 +240,35 @@ class MappingSpec extends Specification {
       implicit val request = requestWithAccept("*/*")
       val result = mapping.status(200)("hello")
       header("Vary", result).get must contain("Accept")
+    }
+  }
+
+  "a composite json/xml/txt/html mapping with notAcceptableFallback" should {
+    val mapping = compositeMapping.notAcceptableFallback
+
+    "produce a json response even with a 'application/x-whatever' accept" in {
+      implicit val request = requestWithAccept("application/x-whatever")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("application/json")
+      val parsedContent = Json.parse(contentAsString(result))
+      (parsedContent \ "value").as[String] must be_==("hello")
+    }
+  }
+
+  "a composite mapping with a custom notAcceptableBody" should {
+    val mapping = compositeMapping notAcceptableBody {
+      (acceptString, typeStrings) =>
+        "bad: " + acceptString + " supported: " + typeStrings.mkString(", ")
+    }
+
+    "produce a custom not acceptable body for a 'text/x-whatever' accept" in {
+      implicit val request = requestWithAccept("text/x-whatever")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/plain")
+      status(result) must be_==(NOT_ACCEPTABLE)
+      contentAsString(result) must be_==(
+        "bad: text/x-whatever supported: application/json, application/xml, " +
+        "text/xml, text/plain, text/html")
     }
   }
 
