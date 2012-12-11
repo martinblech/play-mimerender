@@ -7,7 +7,7 @@ package object mimerender {
 
   trait Mapping[A] {
     def typeStrings: Seq[String]
-    private lazy val defaultTypeString = typeStrings.head
+    private[mimerender] lazy val defaultTypeString = typeStrings.head
     def status(status: Int)(value: A)(implicit request: Request[Any]) = {
       val acceptHeader = request.headers.get("Accept")
       val typeString: Option[String] = acceptHeader match {
@@ -25,8 +25,32 @@ package object mimerender {
         case s => Option(s)
       }
     private[mimerender] def notAcceptableBody(acceptHeader: String): String =
-      "None of the supported types (" + typeStrings + ") is acceptable for " +
-      "the header '" + acceptHeader + "'"
+      "None of the supported types (" + typeStrings mkString ", " + 
+      ") is acceptable for the Acccept header '" + acceptHeader + "'"
+    def notAcceptableFallback = new NotAcceptableFallbackWrapper(this)
+    def notAcceptableBody(build: (String, Seq[String]) => String) =
+      new NotAcceptableBodyWrapper(this, build)
+  }
+
+  class NotAcceptableFallbackWrapper[A](wrapped: Mapping[A])
+      extends Mapping[A] {
+    override def typeStrings = wrapped.typeStrings
+    override def getResult(status: Int, typeString: String) =
+      wrapped.getResult(status, typeString)
+    override def bestMatch(acceptHeader: String) =
+      wrapped.bestMatch(acceptHeader).orElse(Some(defaultTypeString))
+  }
+
+  class NotAcceptableBodyWrapper[A](wrapped: Mapping[A],
+      build: (String, Seq[String]) => String)
+      extends Mapping[A] {
+    override def typeStrings = wrapped.typeStrings
+    override def getResult(status: Int, typeString: String) =
+      wrapped.getResult(status, typeString)
+    override def bestMatch(acceptHeader: String) =
+      wrapped.bestMatch(acceptHeader)
+    override def notAcceptableBody(acceptHeader: String) =
+      build(acceptHeader, typeStrings)
   }
 
   class SimpleMapping[A, B](
