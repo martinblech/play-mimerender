@@ -16,6 +16,7 @@ package object mimerender {
       }
       typeString.map(getResult(status, _)(value))
         .getOrElse(Results.NotAcceptable(notAcceptableBody(acceptHeader.get)))
+        .withHeaders("Vary" -> "Accept")
     }
     private[mimerender] def getResult(
       status: Int, typeString: String): A => Result
@@ -25,7 +26,7 @@ package object mimerender {
         case s => Option(s)
       }
     private[mimerender] def notAcceptableBody(acceptHeader: String): String =
-      "None of the supported types (" + typeStrings mkString ", " + 
+      "None of the supported types (" + typeStrings.mkString(", ") + 
       ") is acceptable for the Acccept header '" + acceptHeader + "'"
     def notAcceptableFallback = new NotAcceptableFallbackWrapper(this)
     def notAcceptableBody(build: (String, Seq[String]) => String) =
@@ -63,7 +64,6 @@ package object mimerender {
 
     override def getResult(status: Int, typeString: String) = { value: A =>
       Results.Status(status)(transform(value))(writeable).as(typeString)
-        .withHeaders("Vary" -> "Accept")
     }
 
     def withCustomTypeString(typeString: String) =

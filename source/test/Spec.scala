@@ -56,6 +56,7 @@ class MappingSpec extends Specification {
       implicit val request = requestWithAccept("text/plain")
       val result = mapping.status(200)("hello")
       status(result) must be_==(NOT_ACCEPTABLE)
+      header("Vary", result).get must contain("Accept")
     }
     "have Accept within the Vary header" in {
       implicit val request = requestWithAccept("*/*")
