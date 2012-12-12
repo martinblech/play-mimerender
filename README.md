@@ -95,3 +95,9 @@ val main = PlayProject(appName, appVersion, appDependencies).settings(
     )(Resolver.ivyStylePatterns)
 )
 ```
+
+History
+-------
+
+`play-mimerender` is a loose Play! 2 port of the Python
+[mimerender](http://github.com/martinblech/play-mimerender) module.
