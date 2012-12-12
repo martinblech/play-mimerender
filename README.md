@@ -1,6 +1,8 @@
 play-mimerender
 ===============
 
+[![Build Status](https://secure.travis-ci.org/martinblech/play-mimerender.png)](http://travis-ci.org/martinblech/play-mimerender)
+
 Play module for RESTful HTTP Content Negotiation. Lets you define a mapping from
 your domain objects to different representations:
 
@@ -8,7 +10,7 @@ your domain objects to different representations:
 val m = mapping(
   "text/html" -> { s: String => views.html.index(s) },
   "application/xml" -> { s: String => <message>{s}</message> },
-  "application/json" -> { s: String => Json.obj("message" -> s) },
+  "application/json" -> { s: String => toJson(Map("message" -> toJson(s))) },
   "text/plain" -> identity[String]_
 )
 ```
