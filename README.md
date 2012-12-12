@@ -101,3 +101,8 @@ History
 
 `play-mimerender` is a loose Play! 2 port of the Python
 [mimerender](http://github.com/martinblech/play-mimerender) module.
+
+License
+-------
+
+See `LICENSE`
