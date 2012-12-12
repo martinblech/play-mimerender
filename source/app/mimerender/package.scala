@@ -33,23 +33,21 @@ package object mimerender {
       new NotAcceptableBodyWrapper(this, build)
   }
 
-  class NotAcceptableFallbackWrapper[A](wrapped: Mapping[A])
-      extends Mapping[A] {
+  class MappingWrapper[A](wrapped: Mapping[A]) extends Mapping[A] {
     override def typeStrings = wrapped.typeStrings
     override def getResult(status: Int, typeString: String) =
       wrapped.getResult(status, typeString)
+  }
+
+  class NotAcceptableFallbackWrapper[A](wrapped: Mapping[A])
+      extends MappingWrapper[A](wrapped) {
     override def bestMatch(acceptHeader: String) =
       wrapped.bestMatch(acceptHeader).orElse(Some(defaultTypeString))
   }
 
   class NotAcceptableBodyWrapper[A](wrapped: Mapping[A],
       build: (String, Seq[String]) => String)
-      extends Mapping[A] {
-    override def typeStrings = wrapped.typeStrings
-    override def getResult(status: Int, typeString: String) =
-      wrapped.getResult(status, typeString)
-    override def bestMatch(acceptHeader: String) =
-      wrapped.bestMatch(acceptHeader)
+      extends MappingWrapper[A](wrapped) {
     override def notAcceptableBody(acceptHeader: String) =
       build(acceptHeader, typeStrings)
   }
