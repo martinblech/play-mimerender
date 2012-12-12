@@ -77,3 +77,21 @@ text/plain) is acceptable for the Acccept header 'application/octet-stream'
 ```
 
 There's really not much more to it, except looking at the `samples` directory.
+
+Installation
+------------
+
+Just add the dependency and the resolver in your `Build.scala`:
+
+```scala
+val appDependencies = Seq(
+  "mimerender" %% "mimerender" % "0.1"
+)
+
+val main = PlayProject(appName, appVersion, appDependencies).settings(
+  resolvers +=
+    Resolver.url("mimerender github repo",
+      url("http://martinblech.github.com/play-mimerender/releases")
+    )(Resolver.ivyStylePatterns)
+)
+```
