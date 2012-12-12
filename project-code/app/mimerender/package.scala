@@ -1,7 +1,7 @@
 import scala.collection.JavaConversions._
 
-import play.api.http.Writeable
-import play.api.mvc.{Result, Results, Request}
+import play.api.http.{Writeable, ContentTypeOf}
+import play.api.mvc.{PlainResult, Results, Request}
 
 /** RESTful HTTP Content Negotiation for the Play! Framework. */
 package object mimerender {
@@ -37,7 +37,7 @@ package object mimerender {
     }
 
     /** Actual result creation, implemented by subclasses. */
-    def getResult(status: Int, typeString: String)(value: A): Result
+    def getResult(status: Int, typeString: String)(value: A): PlainResult
 
     /** Find the best match among the supported type strings for the given
      * accept header. */
@@ -102,26 +102,28 @@ package object mimerender {
   class SimpleMapping[A, B](
       customTypeStrings: Option[Seq[String]],
       transform: (A => B))
-      (implicit writeable: Writeable[B]) extends Mapping[A] {
+      (implicit writeable: Writeable[B],
+                contentTypeOf: ContentTypeOf[B]) extends Mapping[A] {
 
     /** Either the customTypeStrings or else the writeable's typeString. */
     override val typeStrings = customTypeStrings.getOrElse(
-      writeable.contentType.map(_.split(';').head).toSeq)
+      contentTypeOf.mimeType.map(_.split(';').head).toSeq)
 
     /** Get a result where the body is value transformed by the transform
      * function and the content type is the given typeString. */
     override def getResult(status: Int, typeString: String)(value: A) = 
-      Results.Status(status)(transform(value))(writeable).as(typeString)
+      Results.Status(status)(transform(value))(writeable, contentTypeOf).as(typeString)
 
     /** Create a new SimpleMapping that has the given typeString as its sole
      * customTypeString. */
     def withCustomTypeString(typeString: String) =
-      new SimpleMapping(Some(Seq(typeString)), transform)(writeable)
+      new SimpleMapping(Some(Seq(typeString)), transform)(writeable,
+        contentTypeOf)
 
     /** Create a new SimpleMapping that has the given typeStrings as
      * customTypeStrings. */
     def withCustomTypeStrings(typeStrings: Seq[String]) =
-      new SimpleMapping(Some(typeStrings), transform)(writeable)
+      new SimpleMapping(Some(typeStrings), transform)(writeable, contentTypeOf)
   }
 
   /** Mapping that is able to delegate to the appropriate sub-mapping for a
@@ -151,16 +153,8 @@ package object mimerender {
 
   /** Implicit conversion, from a A => B to a SimpleMapping[A, B]. */
   implicit def transformToMapping[A, B](transform: A => B)
-      (implicit writeable: Writeable[B]) =
-    new SimpleMapping(None, transform)(writeable)
-
-  /** Implicit conversion, from a (A => B, Writeable[B]) to a 
-   * SimpleMapping[A, B]. */
-  implicit def transformAndWritableToMapping[A, B](
-      pair: (A => B, Writeable[B])) = {
-    val (transform, writeable) = pair
-    new SimpleMapping(None, transform)(writeable)
-  }
+      (implicit writeable: Writeable[B], contentTypeOf: ContentTypeOf[B]) =
+    new SimpleMapping(None, transform)(writeable, contentTypeOf)
 
   /** Implicit conversion for custom typeString. */
   implicit def stringMappingPairToMapping[A, B](

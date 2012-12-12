@@ -5,6 +5,7 @@ import play.api.test.Helpers._
 import play.api.mvc.Result
 import play.api.http.Writeable
 import play.api.libs.json._
+import play.api.libs.json.Json._
 import org.specs2.mutable._
 import scala.xml._
 import mimerender._
@@ -24,11 +25,11 @@ class MappingSpec extends Specification {
   // request helpers
   val emptyRequest = FakeRequest()
   def requestWithAccept(accept: String) = FakeRequest(
-    "GET", "/", FakeHeaders(Seq("Accept" -> Seq(accept))), "")
+    "GET", "/", FakeHeaders(Map("Accept" -> Seq(accept))), "")
 
   // JSON Mapping with default typeString (provided by the implicit writeable)
   val jsonMapping = new SimpleMapping(None, { s: String =>
-    Json.obj("value" -> s)
+    toJson(Map("message" -> toJson(s)))
   })
   "a json mapping" should {
     val mapping = jsonMapping
@@ -40,7 +41,7 @@ class MappingSpec extends Specification {
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("application/json")
       val parsedContent = Json.parse(contentAsString(result))
-      (parsedContent \ "value").as[String] must be_==("hello")
+      (parsedContent \ "message").as[String] must be_==("hello")
     }
     "take 'application/json' and produce a json response" in {
       implicit val request = requestWithAccept("application/json")
@@ -73,7 +74,7 @@ class MappingSpec extends Specification {
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("application/json")
       val parsedContent = Json.parse(contentAsString(result))
-      (parsedContent \ "value").as[String] must be_==("hello")
+      (parsedContent \ "message").asOpt[String] must beSome("hello")
     }
   }
 
@@ -252,7 +253,7 @@ class MappingSpec extends Specification {
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("application/json")
       val parsedContent = Json.parse(contentAsString(result))
-      (parsedContent \ "value").as[String] must be_==("hello")
+      (parsedContent \ "message").as[String] must be_==("hello")
     }
   }
 
@@ -284,14 +285,6 @@ class MappingSpec extends Specification {
       m must beAnInstanceOf[SimpleMapping[String, scala.xml.NodeSeq]]
       m.typeStrings must contain("text/xml")
     }
-    "construct a mapping with a custom writeable" in {
-      val m = mapping (
-        (identity[Array[Byte]]_,
-         new Writeable(identity[Array[Byte]], Some("application/octet-stream")))
-      )
-      m must beAnInstanceOf[SimpleMapping[Array[Byte], Array[Byte]]]
-      m.typeStrings must contain("application/octet-stream")
-    }
     "construct a mapping with one custom typeString" in {
       val m = mapping (
         "application/xml" -> {s: String => <root><message>{s}</message></root>}
@@ -311,7 +304,7 @@ class MappingSpec extends Specification {
     "construct a composite mapping" in {
       val m = mapping (
         "application/xml" -> {s: String => <root><message>{s}</message></root>},
-        "application/json" -> {s: String => Json.obj("message" -> s)}
+        "application/json" -> {s: String => toJson(Map("message" -> toJson(s)))}
       )
       m must beAnInstanceOf[CompositeMapping[String]]
       m.typeStrings must contain("application/json")
