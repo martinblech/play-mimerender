@@ -3,6 +3,7 @@ import scala.collection.JavaConversions._
 import play.api.http.Writeable
 import play.api.mvc.{Result, Results, Request}
 
+/** RESTful HTTP Content Negotiation for the Play! Framework. */
 package object mimerender {
 
   /** Abstract mapping superclass. Takes care of extracting the Accept header
