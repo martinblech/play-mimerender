@@ -1,3 +1,5 @@
+package mimerender;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,7 +26,7 @@ import org.apache.commons.lang.math.NumberUtils;
  * Ported by Tom Zellman <tzellman@gmail.com>.
  * 
  */
-public final class MIMEParse
+final class MIMEParse
 {
 
     /**
