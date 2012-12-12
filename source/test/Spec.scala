@@ -274,6 +274,9 @@ class MappingSpec extends Specification {
   }
 
   "the mapping constructor DSL" should {
+    "fail with empty args" in {
+      mapping() should throwA[IllegalArgumentException]
+    }
     "construct a simple mapping" in {
       val m = mapping (
         {s: String => <root><message>{s}</message></root>}

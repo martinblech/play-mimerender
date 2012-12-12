@@ -72,6 +72,7 @@ package object mimerender {
   }
 
   class CompositeMapping[A](mappings: Seq[Mapping[A]]) extends Mapping[A] {
+    require(!mappings.isEmpty, "need at least one mapping")
     private val typeStringMappingPairs = (for {
       mapping <- mappings
       typeString <- mapping.typeStrings
