@@ -1,4 +1,4 @@
-name := "mimeparse"
+name := "mimerender"
 
 version := "0.1"
 
