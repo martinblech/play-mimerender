@@ -6,7 +6,7 @@ object MimerenderBuild extends Build {
     "2.1-RC1" -> "2.10.0-RC5"
   ).withDefaultValue("2.9.1")
 
-  lazy val playVersion = sys.env.get("PLAY_VERSION").getOrElse("2.0.4")
+  lazy val playVersion = sys.env.get("PLAY_VERSION").getOrElse("[2.0.1, 2.1)")
 
   lazy val scalaVersion_ = playVersionToScalaVersion(playVersion)
 
