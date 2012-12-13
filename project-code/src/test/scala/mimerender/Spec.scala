@@ -1,4 +1,4 @@
-package test
+package mimerender
 
 import play.api.test._
 import play.api.test.Helpers._
@@ -8,7 +8,8 @@ import play.api.libs.json._
 import play.api.libs.json.Json._
 import org.specs2.mutable._
 import scala.xml._
-import mimerender._
+
+import mimerender.DSL._
 
 class MappingSpec extends Specification {
   "the SimpleMapping constructor" should {
@@ -232,6 +233,23 @@ class MappingSpec extends Specification {
       implicit val request = requestWithAccept("*/html")
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("text/html")
+    }
+    "resolve 'text/html,application/xml;q=0.9,*/*;q=0.8' to text/html" in {
+      implicit val request = requestWithAccept(
+        "text/html,application/xml;q=0.9,*/*;q=0.8")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/html")
+    }
+    "resolve 'text/html;q=0.8,application/xml;q=0.9' to application/xml" in {
+      implicit val request = requestWithAccept(
+        "text/html;q=0.8,application/xml;q=0.9")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("application/xml")
+    }
+    "resolve 'x/y,z/w;q=0.9,*/*;q=0.8' to application/json" in {
+      implicit val request = requestWithAccept("x/y,z/w;q=0.9,*/*;q=0.8")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("application/json")
     }
     "fail with 'application/octet-stream'" in {
       implicit val request = requestWithAccept("application/octet-stream")
