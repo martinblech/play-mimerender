@@ -25,6 +25,9 @@ object MimerenderBuild extends Build {
 
   lazy val root = Project(id = "mimerender",
                           base = file(".")).settings(
+    crossPaths := false,
+    organization := "mimerender",
+    name := "mimerender_" + playScalaVersion,
     scalaVersion := scalaVersion_,
     version := "0.1",
     resolvers += "Typesafe repository" at
