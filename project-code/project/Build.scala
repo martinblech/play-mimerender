@@ -24,7 +24,7 @@ object MimerenderBuild extends Build {
     organization := "mimerender",
     name := "mimerender_" + playScalaVersion,
     scalaVersion := scalaVersion_,
-    version := "0.1",
+    version := "0.1.1",
     resolvers += "Typesafe repository" at
       "http://repo.typesafe.com/typesafe/releases/",
     libraryDependencies := dependencies
