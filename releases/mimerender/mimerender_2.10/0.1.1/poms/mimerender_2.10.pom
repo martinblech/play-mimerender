@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>mimerender</groupId>
+    <artifactId>mimerender_2.10</artifactId>
+    <packaging>jar</packaging>
+    <description>mimerender_2.10</description>
+    <version>0.1.1</version>
+    <name>mimerender_2.10</name>
+    <organization>
+        <name>mimerender</name>
+    </organization>
+    <dependencies>
+        <dependency>
+            <groupId>play</groupId>
+            <artifactId>play_2.10</artifactId>
+            <version>2.1-RC1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>play</groupId>
+            <artifactId>play-test_2.10</artifactId>
+            <version>2.1-RC1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.6</version>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
+    <repositories>
+        <repository>
+            <id>Typesaferepository</id>
+            <name>Typesafe repository</name>
+            <url>http://repo.typesafe.com/typesafe/releases/</url>
+            <layout>default</layout>
+        </repository>
+    </repositories>
+</project>
