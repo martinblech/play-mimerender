@@ -1,4 +1,4 @@
 language: scala
 script:
   - "cd project-code"
-  - "sbt ++$TRAVIS_SCALA_VERSION test"
+  - "sbt test"
