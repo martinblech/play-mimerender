@@ -4,6 +4,7 @@ env:
   - PLAY_VERSION=2.0.2
   - PLAY_VERSION=2.0.3
   - PLAY_VERSION=2.0.4
+  - PLAY_VERSION=2.1-RC1
 script:
   - "cd project-code"
   - "sbt test"
