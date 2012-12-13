@@ -1,4 +1,10 @@
 language: scala
+env:
+  - PLAY_VERSION=2.0
+  - PLAY_VERSION=2.0.1
+  - PLAY_VERSION=2.0.2
+  - PLAY_VERSION=2.0.3
+  - PLAY_VERSION=2.0.4
 script:
   - "cd project-code"
   - "sbt test"
