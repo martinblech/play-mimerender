@@ -85,7 +85,7 @@ Just add the dependency and the resolver in your `Build.scala`:
 
 ```scala
 val appDependencies = Seq(
-  "mimerender" %% "mimerender" % "0.1"
+  "mimerender" %% "mimerender" % "0.1.1"
 )
 
 val main = PlayProject(appName, appVersion, appDependencies).settings(
