@@ -3,13 +3,8 @@ import Keys._
 
 object MimerenderBuild extends Build {
   lazy val playVersionToScalaVersion = Map(
-    "2.0" -> "2.9.1",
-    "2.0.1" -> "2.9.1",
-    "2.0.2" -> "2.9.1",
-    "2.0.3" -> "2.9.1",
-    "2.0.4" -> "2.9.1",
     "2.1-RC1" -> "2.10.0-RC5"
-  )
+  ).withDefaultValue("2.9.1")
 
   lazy val playVersion = sys.env.get("PLAY_VERSION").getOrElse("2.0.4")
 
