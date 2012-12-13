@@ -25,8 +25,10 @@ class MappingSpec extends Specification {
   }
   // request helpers
   val emptyRequest = FakeRequest()
-  def requestWithAccept(accept: String) = FakeRequest(
-    "GET", "/", FakeHeaders(Map("Accept" -> Seq(accept))), "")
+  def requestWithAccept(accept: String) = {
+    implicit def map2seq(m: Map[String, Seq[String]]) = m.toSeq
+    FakeRequest("GET", "/", FakeHeaders(Map("Accept" -> Seq(accept))), "")
+  }
 
   // JSON Mapping with default typeString (provided by the implicit writeable)
   val jsonMapping = new SimpleMapping(None, { s: String =>
