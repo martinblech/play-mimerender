@@ -14,8 +14,7 @@ object MimerenderBuild extends Build {
 
   lazy val dependencies = Seq(
     "play" % ("play_" + playScalaVersion) % playVersion,
-    "play" % ("play-test_" + playScalaVersion) % playVersion,
-    "commons-lang" % "commons-lang" % "2.6"
+    "play" % ("play-test_" + playScalaVersion) % playVersion
   )
 
   lazy val root = Project(id = "mimerender",
