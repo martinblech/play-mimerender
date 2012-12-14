@@ -18,8 +18,8 @@ package object mimeparse {
 
   private type FitnessAndQuality = (Int, Float)
 
-  private case class ParseResults(_type: String, subType: String, q: Float,
-    params: Map[String, String]) {
+  private case class ParseResults(fullType: String, _type: String,
+      subType: String, q: Float, params: Map[String, String]) {
     def fit(other: ParseResults): FitnessAndQuality =
       if (!((_type == "*" || _type == other._type) &&
            (subType == "*" || subType == other.subType)))
@@ -40,8 +40,9 @@ package object mimeparse {
   private val paramSplitter = "\\s*(.*?)\\s*=\\s*(.*?)\\s*".r
 
   private def parseMediaRange(mimeType: String): ParseResults = {
+    val trimmed = mimeType.trim
     // split into rawFullType and rawParams using ';' as separator
-    val Array(rawFullType, rawParams @ _*) = paramSeparator.split(mimeType.trim)
+    val Array(rawFullType, rawParams @ _*) = paramSeparator.split(trimmed)
     // expand * to */*
     val fullType = if (rawFullType == "*") "*/*" else rawFullType
     // split fullType into type and subType using '/' as separator
@@ -55,22 +56,24 @@ package object mimeparse {
     } catch {
       case _ => 1f
     }
-    ParseResults(_type, subType, safeQ, params - "q")
+    ParseResults(trimmed, _type, subType, safeQ, params - "q")
   }
 
   private def fitnessAndQuality(mimeType: ParseResults,
       parsedRanges: Seq[ParseResults]): FitnessAndQuality =
+    // find the max fit for this mime type among the parsed ranges
     parsedRanges.map(_.fit(mimeType)).max
 
   private def parseHeader(header: String) =
+    // trim the header, split with with ',' as separator and parse each range
     rangeSeparator.split(header.trim).map(parseMediaRange(_))
 
-  private def bestMatchParsed(supported: Seq[(ParseResults, String)],
+  private def bestMatchParsed(supported: Seq[ParseResults],
       header: String): Option[String] = {
     val ranges = parseHeader(header)
     // pack f/q and mimeType
-    supported.map({ case (range, mimeType) =>
-      (fitnessAndQuality(range, ranges), mimeType)
+    supported.map({ range =>
+      (fitnessAndQuality(range, ranges), range.fullType)
       // filter out q >= 0 
     }).filter({ case ((_, q), _) => q > 0 }) match {
       case Nil => None
@@ -80,15 +83,17 @@ package object mimeparse {
   }
 
   private def parseSupported(supported: Seq[String]) =
-    supported.map({ mimeType => (parseMediaRange(mimeType), mimeType) })
+    // parse each supported mime type as a media range
+    supported.map(parseMediaRange(_))
 
   /** Takes a list of supported mime-types and finds the best match for all the
    * media-ranges listed in header. The value of header must be a string that
    * conforms to the format of the HTTP Accept: header. The value of
    * 'supported' is a list of mime-types. */
   def bestMatch(supported: Seq[String], header: String): Option[String] = {
-    // pack parsed range and mimeType
+    // parse supported mime types
     val parsedSupported = parseSupported(supported)
+    // find the best match
     bestMatchParsed(parsedSupported, header)
   }
 
@@ -96,7 +101,7 @@ package object mimeparse {
    * without parsing everything every time. */
   class Matcher(supported: Seq[String]) {
     private val parsedSupported = parseSupported(supported)
-    def bestMatch(header: String) = bestMatchParsed(parsedSupported, header)
+    def apply(header: String) = bestMatchParsed(parsedSupported, header)
   }
 
 }

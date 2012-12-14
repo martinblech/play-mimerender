@@ -40,12 +40,11 @@ trait Mapping[A] {
   /** Actual result creation, implemented by subclasses. */
   def getResult(status: Int, typeString: String)(value: A): PlainResult
 
-  private lazy val mimeMatcher = new Matcher(typeStrings)
+  private lazy val matcher = new Matcher(typeStrings)
 
   /** Find the best match among the supported type strings for the given
    * accept header. */
-  def bestMatch(acceptHeader: String): Option[String] =
-    mimeMatcher.bestMatch(acceptHeader)
+  def bestMatch(header: String): Option[String] = matcher(header)
 
   /** Construct the text/plain body for a 406 result. */
   def buildNotAcceptableBody(acceptHeader: String): String =
