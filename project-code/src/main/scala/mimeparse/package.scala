@@ -37,13 +37,22 @@ package object mimeparse {
   private val paramSplitter = "\\s*(.*?)\\s*=\\s*(.*?)\\s*".r
 
   private def parseMediaRange(mimeType: String): ParseResults = {
+    // split into rawFullType and rawParams using ';' as separator
     val Array(rawFullType, rawParams @ _*) = paramSeparator.split(mimeType.trim)
+    // expand * to */*
     val fullType = if (rawFullType == "*") "*/*" else rawFullType
+    // split fullType into type and subType using '/' as separator
     val typeSplitter(_type, subType) = fullType
+    // build params Map
     val params = rawParams.map({ case paramSplitter(k, v) => (k, v) }).toMap
-    val q = params.get("q").map(_.toFloat).getOrElse(1f)
-    val fixedQ = if (q >=0 && q <=1) q else 1f
-    ParseResults(_type, subType, fixedQ, params - "q")
+    // extract q from map and fallback to 1 if outside range or invalid
+    val safeQ = try { 
+      val q = params("q").toFloat
+      if (q >=0 && q <=1) q else 1f
+    } catch {
+      case _ => 1f
+    }
+    ParseResults(_type, subType, safeQ, params - "q")
   }
 
   private type FitnessAndQuality = (Int, Float)
