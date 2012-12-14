@@ -19,7 +19,7 @@ package object mimeparse {
     params: Map[String, String]) {
     def fit(other: ParseResults): FitnessAndQuality =
     if (!((_type == "*" || _type == other._type) &&
-      (subType == "*" || subType == other.subType)))
+         (subType == "*" || subType == other.subType)))
       // type and subtype don't match, f=-1, q=0
       (-1, 0)
     else {
@@ -40,9 +40,7 @@ package object mimeparse {
     val Array(rawFullType, rawParams @ _*) = paramSeparator.split(mimeType.trim)
     val fullType = if (rawFullType == "*") "*/*" else rawFullType
     val typeSplitter(_type, subType) = fullType
-    val params = rawParams.map({ case paramSplitter(k, v) =>
-      (k, v)
-    }).toMap
+    val params = rawParams.map({ case paramSplitter(k, v) => (k, v) }).toMap
     val q = params.get("q").map(_.toFloat).getOrElse(1f)
     val fixedQ = if (q >=0 && q <=1) q else 1f
     ParseResults(_type, subType, fixedQ, params - "q")
