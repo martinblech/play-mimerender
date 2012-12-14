@@ -5,7 +5,7 @@ import scala.collection.JavaConversions._
 import play.api.http.{Writeable, ContentTypeOf}
 import play.api.mvc.{PlainResult, Results, Request}
 
-import mimeparse.MIMEParse
+import mimeparse.Matcher
 
 /** Abstract mapping superclass. Takes care of extracting the Accept header
  * from the HTTP request and selecting the most appropriate  representation 
@@ -40,10 +40,12 @@ trait Mapping[A] {
   /** Actual result creation, implemented by subclasses. */
   def getResult(status: Int, typeString: String)(value: A): PlainResult
 
+  private lazy val mimeMatcher = new Matcher(typeStrings)
+
   /** Find the best match among the supported type strings for the given
    * accept header. */
   def bestMatch(acceptHeader: String): Option[String] =
-    MIMEParse.bestMatch(typeStrings, acceptHeader)
+    mimeMatcher.bestMatch(acceptHeader)
 
   /** Construct the text/plain body for a 406 result. */
   def buildNotAcceptableBody(acceptHeader: String): String =
