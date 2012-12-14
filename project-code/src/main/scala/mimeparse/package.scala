@@ -74,7 +74,7 @@ package object mimeparse {
     // pack f/q and mimeType
     supported.map({ range =>
       (fitnessAndQuality(range, ranges), range.fullType)
-      // filter out q >= 0 
+      // filter out q <= 0 
     }).filter({ case ((_, q), _) => q > 0 }) match {
       case Nil => None
       // find max by f/q and extract the mimeType
