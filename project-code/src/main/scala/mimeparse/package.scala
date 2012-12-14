@@ -15,20 +15,23 @@
  * 
  */
 package object mimeparse {
+
+  private type FitnessAndQuality = (Int, Float)
+
   private case class ParseResults(_type: String, subType: String, q: Float,
     params: Map[String, String]) {
     def fit(other: ParseResults): FitnessAndQuality =
-    if (!((_type == "*" || _type == other._type) &&
-         (subType == "*" || subType == other.subType)))
-      // type and subtype don't match, f=-1, q=0
-      (-1, 0)
-    else {
-      val typeFitness = if (_type == other._type) 100 else 0
-      val subTypeFitness = if (subType == other.subType) 10 else 0
-      val paramFitness = (params.toSet & other.params.toSet).size
-      val fitness = typeFitness + subTypeFitness + paramFitness
-      (fitness, q)
-    }
+      if (!((_type == "*" || _type == other._type) &&
+           (subType == "*" || subType == other.subType)))
+        // type and subtype don't match, f=-1, q=0
+        (-1, 0)
+      else {
+        val typeFitness = if (_type == other._type) 100 else 0
+        val subTypeFitness = if (subType == other.subType) 10 else 0
+        val paramFitness = (params.toSet & other.params.toSet).size
+        val fitness = typeFitness + subTypeFitness + paramFitness
+        (fitness, q)
+      }
   }
 
   private val rangeSeparator = "\\s*,\\s*".r
@@ -54,8 +57,6 @@ package object mimeparse {
     }
     ParseResults(_type, subType, safeQ, params - "q")
   }
-
-  private type FitnessAndQuality = (Int, Float)
 
   private def fitnessAndQuality(mimeType: ParseResults,
       parsedRanges: Seq[ParseResults]): FitnessAndQuality =
@@ -91,8 +92,8 @@ package object mimeparse {
     bestMatchParsed(parsedSupported, header)
   }
 
-  /** Holds a list of supported mime types. Able to find the best match without
-   * parsing everything every time. */
+  /** Holds a list of supported mime types and is able to find the best match
+   * without parsing everything every time. */
   class Matcher(supported: Seq[String]) {
     private val parsedSupported = parseSupported(supported)
     def bestMatch(header: String) = bestMatchParsed(parsedSupported, header)
