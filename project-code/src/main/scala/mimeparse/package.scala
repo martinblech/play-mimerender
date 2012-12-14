@@ -20,8 +20,8 @@ package object mimeparse {
     def fit(other: ParseResults): FitnessAndQuality =
     if (!((_type == "*" || _type == other._type) &&
       (subType == "*" || subType == other.subType)))
-    // type and subtype don't match, f=-1, q=0
-    (-1, 0)
+      // type and subtype don't match, f=-1, q=0
+      (-1, 0)
     else {
       val typeFitness = if (_type == other._type) 100 else 0
       val subTypeFitness = if (subType == other.subType) 10 else 0
