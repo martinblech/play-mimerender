@@ -32,17 +32,16 @@ object MIMEParse {
       }
   }
 
-  private val paramSeparator = "\\s*;\\s*".r
-  private val typeSeparator = "\\s*/\\s*".r
-  private val paramSplitter = "\\s*=\\s*".r
   private val rangeSeparator = "\\s*,\\s*".r
+  private val paramSeparator = "\\s*;\\s*".r
+  private val typeSplitter = "\\s*(.*?)\\s*/\\s*(.*?)\\s*".r
+  private val paramSplitter = "\\s*(.*?)\\s*=\\s*(.*?)\\s*".r
 
   private def parseMediaRange(mimeType: String): ParseResults = {
     val Array(rawFullType, rawParams @ _*) = paramSeparator.split(mimeType.trim)
     val fullType = if (rawFullType == "*") "*/*" else rawFullType
-    val Array(_type, subType) = typeSeparator.split(fullType)
-    val params = rawParams.map({ param =>
-      val Array(k, v) = paramSplitter.split(param)
+    val typeSplitter(_type, subType) = fullType
+    val params = rawParams.map({ case paramSplitter(k, v) =>
       (k, v)
     }).toMap
     val q = params.get("q").map(_.toFloat).getOrElse(1f)
@@ -55,7 +54,7 @@ object MIMEParse {
   private def fitnessAndQuality(mimeType: String,
       parsedRanges: Seq[ParseResults]): FitnessAndQuality = {
     val target = parseMediaRange(mimeType)
-    parsedRanges.map(_.fit(target)).sorted.last
+    parsedRanges.map(_.fit(target)).max
   }
 
   private def parseHeader(header: String) =
@@ -67,12 +66,14 @@ object MIMEParse {
    * 'supported' is a list of mime-types. */
   def bestMatch(supported: Seq[String], header: String): Option[String] = {
     val ranges = parseHeader(header)
-    // pack f/q and mimeType, filter out q <= 0 and sort by decreasing f/q
-    val sorted = supported.map({ mimeType =>
+    // pack f/q and mimeType
+    supported.map({ mimeType =>
       (fitnessAndQuality(mimeType, ranges), mimeType)
-    }).filter({ case ((_, q), _) => q > 0 })
-      .sortBy({ case ((f, q), _) => (-f, -q) })
-    // take the head and extract the mimeType
-    sorted.firstOption.map({ case (_, mimeType) => mimeType })
+      // filter out q >= 0 
+    }).filter(_._1._2 > 0) match {
+      case Nil => None
+      // find max by f/q and extract the mimeType
+      case candidates => Some(candidates.maxBy({ case (fq, _) => fq })._2)
+    }
   }
 }
