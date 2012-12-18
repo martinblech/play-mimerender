@@ -10,30 +10,35 @@ object DSL {
     case m => new CompositeMapping(m)
   }
 
-  /** Implicit conversion, for functions that don't care about Request */
-  implicit def expandTransform[A, B](transform: A => B) =
-    { (value: A, _: Request[Any]) => transform(value) }
+  implicit def f1ToMapping[A, B: Writeable: ContentTypeOf](f1: A => B):
+      SimpleMapping[A, B] =
+    new SimpleMapping(None, (v: A, _: Request[Any]) => f1(v))
 
-  /** Implicit conversion, from a A => B to a SimpleMapping[A, B]. */
-  implicit def transformToMapping[A, B, C[A, B]](transform: C[A, B])
-      (implicit writeable: Writeable[B],
-                contentTypeOf: ContentTypeOf[B],
-                conv: C[A, B] => ((A, Request[Any]) => B)) =
-    new SimpleMapping(None, transform)(writeable, contentTypeOf)
+  implicit def f2ToMapping[A, B: Writeable: ContentTypeOf](
+    f2: (A, Request[Any]) => B) = new SimpleMapping(None, f2)
 
-  /** Implicit conversion for custom typeString. */
-  implicit def stringMappingPairToMapping[A, B, C[A, B]](
-      pair: (String, C[A, B]))(
-      implicit conv: C[A, B] => SimpleMapping[A, B]) = {
-    val (typeString, mapping) = pair
-    mapping withCustomTypeString typeString
+  implicit def stringf1ToMapping[A, B](pair: (String, A => B))(
+      implicit ev: (A => B) => SimpleMapping[A, B]) = {
+    val (contentType, mapping) = pair
+    mapping withCustomTypeStrings Seq(contentType)
   }
 
-  /** Implicit conversion for custom typeStrings. */
-  implicit def stringSeqMappingPairToMapping[A, B, C[A, B]](
-      pair: (Seq[String], C[A, B]))(
-      implicit conv: C[A, B] => SimpleMapping[A, B]) = {
-    val (typeStrings, mapping) = pair
-    mapping withCustomTypeStrings typeStrings
+  implicit def stringf2ToMapping[A, B](pair: (String, (A, Request[Any]) => B))(
+      implicit ev: ((A, Request[Any]) => B) => SimpleMapping[A, B]) = {
+    val (contentType, mapping) = pair
+    mapping withCustomTypeStrings Seq(contentType)
+  }
+
+  implicit def stringsf1ToMapping[A, B](pair: (Seq[String], A => B))(
+      implicit ev: (A => B) => SimpleMapping[A, B]) = {
+    val (contentTypes, mapping) = pair
+    mapping withCustomTypeStrings contentTypes
+  }
+
+  implicit def stringsf2ToMapping[A, B](
+      pair: (Seq[String], (A, Request[Any]) => B))(
+      implicit ev: ((A, Request[Any]) => B) => SimpleMapping[A, B]) = {
+    val (contentTypes, mapping) = pair
+    mapping withCustomTypeStrings contentTypes
   }
 }

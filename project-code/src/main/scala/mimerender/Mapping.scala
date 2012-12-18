@@ -102,7 +102,7 @@ private class NotAcceptableBodyWrapper[A](wrapped: Mapping[A],
  * several equivalent strings (e.g. text/xml and application/xml). */
 class SimpleMapping[A, B](
     customTypeStrings: Option[Seq[String]],
-    transform: ((A, Request[Any]) => B))
+    transform: (A, Request[Any]) => B)
     (implicit writeable: Writeable[B],
               contentTypeOf: ContentTypeOf[B]) extends Mapping[A] {
 
