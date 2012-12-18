@@ -1,6 +1,7 @@
 package mimerender
 
 import play.api.http.{Writeable, ContentTypeOf}
+import play.api.mvc.Request
 
 object DSL {
   /** Build a mapping (main entry point for users). */
@@ -9,9 +10,15 @@ object DSL {
     case m => new CompositeMapping(m)
   }
 
+  /** Implicit conversion, for functions that don't care about Request */
+  implicit def expandTransform[A, B](transform: A => B) =
+    { (value: A, _: Request[Any]) => transform(value) }
+
   /** Implicit conversion, from a A => B to a SimpleMapping[A, B]. */
-  implicit def transformToMapping[A, B](transform: A => B)
-      (implicit writeable: Writeable[B], contentTypeOf: ContentTypeOf[B]) =
+  implicit def transformToMapping[A, B, C[A, B]](transform: C[A, B])
+      (implicit writeable: Writeable[B],
+                contentTypeOf: ContentTypeOf[B],
+                conv: C[A, B] => ((A, Request[Any]) => B)) =
     new SimpleMapping(None, transform)(writeable, contentTypeOf)
 
   /** Implicit conversion for custom typeString. */

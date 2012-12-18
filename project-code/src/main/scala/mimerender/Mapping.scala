@@ -31,14 +31,15 @@ trait Mapping[A] {
       case Some(acceptHeader) => bestMatch(acceptHeader)
       case None => Some(defaultTypeString)
     }
-    typeString.map(getResult(status, _)(value))
+    typeString.map(getResult(status, _, value, request))
       .getOrElse(Results.NotAcceptable(buildNotAcceptableBody(
         acceptHeader.get)))
       .withHeaders("Vary" -> "Accept")
   }
 
   /** Actual result creation, implemented by subclasses. */
-  def getResult(status: Int, typeString: String)(value: A): PlainResult
+  def getResult(status: Int, typeString: String, value: A,
+    request: Request[Any]): PlainResult
 
   private lazy val matcher = new Matcher(typeStrings)
 
@@ -67,8 +68,9 @@ trait Mapping[A] {
 /** Wraps a mapping instance and delegates method calls to it. */
 private class MappingWrapper[A](wrapped: Mapping[A]) extends Mapping[A] {
   override def typeStrings = wrapped.typeStrings
-  override def getResult(status: Int, typeString: String)(value: A) =
-    wrapped.getResult(status, typeString)(value)
+  override def getResult(status: Int, typeString: String, value: A,
+      request: Request[Any]) =
+    wrapped.getResult(status, typeString, value, request)
 }
 
 /** Wraps a mapping and falls back to the default type instead of failing
@@ -100,7 +102,7 @@ private class NotAcceptableBodyWrapper[A](wrapped: Mapping[A],
  * several equivalent strings (e.g. text/xml and application/xml). */
 class SimpleMapping[A, B](
     customTypeStrings: Option[Seq[String]],
-    transform: (A => B))
+    transform: ((A, Request[Any]) => B))
     (implicit writeable: Writeable[B],
               contentTypeOf: ContentTypeOf[B]) extends Mapping[A] {
 
@@ -110,8 +112,10 @@ class SimpleMapping[A, B](
 
   /** Get a result where the body is value transformed by the transform
    * function and the content type is the given typeString. */
-  override def getResult(status: Int, typeString: String)(value: A) = 
-    Results.Status(status)(transform(value))(writeable, contentTypeOf).as(typeString)
+  override def getResult(status: Int, typeString: String, value: A,
+      request: Request[Any]) = 
+    Results.Status(status)(transform(value, request))(
+      writeable, contentTypeOf).as(typeString)
 
   /** Create a new SimpleMapping that has the given typeString as its sole
    * customTypeString. */
@@ -140,6 +144,8 @@ class CompositeMapping[A](mappings: Seq[Mapping[A]]) extends Mapping[A] {
   override val typeStrings = typeStringMappingPairs.map(_._1)
 
   /** Find the sub-mapping for the given typeString and delegate. */
-  override def getResult(status: Int, typeString: String)(value: A) =
-    mappingsByTypeString(typeString).getResult(status, typeString)(value)
+  override def getResult(status: Int, typeString: String, value: A,
+      request: Request[Any]) =
+    mappingsByTypeString(typeString).getResult(
+      status, typeString, value, request)
 }
