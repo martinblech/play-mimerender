@@ -34,7 +34,7 @@ class MappingSpec extends Specification {
     FakeRequest("GET", "/", FakeHeaders(Map("Accept" -> Seq(accept))), "")
   }
   def requestWithQueryString(queryString: String) =
-    FakeRequest("GET", "?" + queryString, FakeHeaders(Map()), "")
+    FakeRequest("GET", "?" + queryString, FakeHeaders(), "")
 
   // JSON Mapping with default typeString (provided by the implicit writeable)
   val jsonMapping = new SimpleMapping(None, { (s: String, _: Request[Any]) =>
