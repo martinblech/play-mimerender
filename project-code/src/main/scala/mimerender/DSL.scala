@@ -15,17 +15,17 @@ object DSL {
     new SimpleMapping(None, transform)(writeable, contentTypeOf)
 
   /** Implicit conversion for custom typeString. */
-  implicit def stringMappingPairToMapping[A, B](
-      pair: (String, A => B))(
-      implicit conv: (A => B) => SimpleMapping[A, B]) = {
+  implicit def stringMappingPairToMapping[A, B, C[A, B]](
+      pair: (String, C[A, B]))(
+      implicit conv: C[A, B] => SimpleMapping[A, B]) = {
     val (typeString, mapping) = pair
     mapping withCustomTypeString typeString
   }
 
   /** Implicit conversion for custom typeStrings. */
-  implicit def stringSeqMappingPairToMapping[A, B](
-      pair: (Seq[String], A => B))(
-      implicit conv: (A => B) => SimpleMapping[A, B]) = {
+  implicit def stringSeqMappingPairToMapping[A, B, C[A, B]](
+      pair: (Seq[String], C[A, B]))(
+      implicit conv: C[A, B] => SimpleMapping[A, B]) = {
     val (typeStrings, mapping) = pair
     mapping withCustomTypeStrings typeStrings
   }
