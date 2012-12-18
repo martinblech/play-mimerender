@@ -7,10 +7,17 @@ Play module for RESTful HTTP Content Negotiation. Lets you define a mapping from
 your domain objects to different representations:
 
 ```scala
+def jsonTransform(s: String) = toJson(Map("message" -> toJson(s)))
+def jsonpTransform(s: String, r: Request[Any]) = {
+  val callback = r.queryString.getOrElse("callback", Nil).headOption
+    .getOrElse("callback")
+  Jsonp(callback, jsonTransform(s))
+}
 val m = mapping(
   "text/html" -> { s: String => views.html.index(s) },
   "application/xml" -> { s: String => <message>{s}</message> },
-  "application/json" -> { s: String => toJson(Map("message" -> toJson(s))) },
+  "application/json" -> jsonTransform _,
+  "text/javascript" -> jsonpTransform _,
   "text/plain" -> identity[String]_
 )
 ```
@@ -74,6 +81,15 @@ Content-Length: 150
 
 None of the supported types (text/html, application/xml, application/json,
 text/plain) is acceptable for the Acccept header 'application/octet-stream'
+
+$ # text/javascript produces jsonp with a user-specified callback
+$ curl -iH "Accept: text/javascript" "localhost:9000/?callback=callMe"
+HTTP/1.1 200 OK
+Content-Type: text/javascript
+Vary: Accept
+Content-Length: 36
+
+callMe({"message":"Hello, world!"});
 ```
 
 There's really not much more to it, except looking at the `samples` directory.
