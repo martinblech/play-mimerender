@@ -2,8 +2,9 @@ package mimerender
 
 import play.api.test._
 import play.api.test.Helpers._
-import play.api.mvc.Result
+import play.api.mvc.{Result, Request}
 import play.api.http.Writeable
+import play.api.libs.Jsonp
 import play.api.libs.json._
 import play.api.libs.json.Json._
 import org.specs2.mutable._
@@ -14,12 +15,15 @@ import mimerender.DSL._
 class MappingSpec extends Specification {
   "the SimpleMapping constructor" should {
     "use the implicit Writeable's typeString by default" in {
-      val mapping = new SimpleMapping(None, { _: Any => <root/> })
+      val mapping = new SimpleMapping(None,
+        { (_: Any, _: Request[Any]) => <root/> }
+      )
       mapping.typeStrings must be_==(Seq("text/xml"))
     }
     "override the Writeable's typeString when needed" in {
       val mapping = new SimpleMapping(Some(Seq("application/xml")),
-        { _: Any => <root/> })
+        { (_: Any, _: Request[Any]) => <root/> }
+      )
       mapping.typeStrings must be_==(Seq("application/xml"))
     }
   }
@@ -29,9 +33,11 @@ class MappingSpec extends Specification {
     implicit def map2seq(m: Map[String, Seq[String]]) = m.toSeq
     FakeRequest("GET", "/", FakeHeaders(Map("Accept" -> Seq(accept))), "")
   }
+  def requestWithQueryString(queryString: String) =
+    FakeRequest("GET", "?" + queryString, FakeHeaders(Map()), "")
 
   // JSON Mapping with default typeString (provided by the implicit writeable)
-  val jsonMapping = new SimpleMapping(None, { s: String =>
+  val jsonMapping = new SimpleMapping(None, { (s: String, _: Request[Any]) =>
     toJson(Map("message" -> toJson(s)))
   })
   "a json mapping" should {
@@ -96,9 +102,35 @@ class MappingSpec extends Specification {
     }
   }
 
+  // JSONP Mapping
+  val jsonpMapping = new SimpleMapping(None, { (s: String, r: Request[Any]) =>
+    val callback = r.queryString.getOrElse("callback", Seq())
+      .headOption.getOrElse("callback")
+    Jsonp(callback,
+      toJson(Map("message" -> toJson(s))))
+  })
+  "a jsonp mapping" should {
+    val mapping = jsonpMapping
+    "have 'text/javascript' among the typeStrings" in {
+      mapping.typeStrings must contain("text/javascript")
+    }
+    "use the default callback name when not specified" in {
+      implicit val request = emptyRequest
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/javascript")
+      contentAsString(result) must startWith("callback(")
+    }
+    "use the specified callback name" in {
+      implicit val request = requestWithQueryString("callback=callMe")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/javascript")
+      contentAsString(result) must startWith("callMe(")
+    }
+  }
+
   // XML Mapping with explicit typeStrings
   val xmlMapping = new SimpleMapping(Some(Seq("application/xml", "text/xml")),
-    { s: String => <root><value>{s}</value></root> })
+    { (s: String, _: Request[Any]) => <root><value>{s}</value></root> })
   "a xml mapping" should {
     val mapping = xmlMapping
     "have 'application/xml' and 'text/xml' among the typeStrings" in {
@@ -135,7 +167,9 @@ class MappingSpec extends Specification {
   }
 
   // TXT Mapping with default typeString (provided by the implicit writeable)
-  val txtMapping = new SimpleMapping(None, identity[String])
+  val txtMapping = new SimpleMapping(None,
+    { (value: String, _:Request[Any]) => value }
+  )
   "a txt mapping" should {
     val mapping = txtMapping
     "have 'text/plain' among the typeStrings" in {
@@ -160,7 +194,7 @@ class MappingSpec extends Specification {
   }
 
   // HTML Mapping with default typeString (provided by the implicit writeable)
-  val htmlMapping = new SimpleMapping(None, { s: String =>
+  val htmlMapping = new SimpleMapping(None, { (s: String, _: Request[Any]) =>
     new play.api.templates.Html("<html><body>" + s + "</body></html>")
   })
   "a html mapping" should {
@@ -186,9 +220,9 @@ class MappingSpec extends Specification {
     }
   }
 
-  // composite JSON/XML/TXT/HTML mapping
+  // composite JSON/XML/TXT/HTML/JSONP mapping
   val compositeMapping = new CompositeMapping(Seq(
-    jsonMapping, xmlMapping, txtMapping, htmlMapping))
+    jsonMapping, xmlMapping, txtMapping, htmlMapping, jsonpMapping))
   "a composite json/xml/txt/html mapping" should {
     val mapping = compositeMapping
     "choose the first option (json) when accept header is empty" in {
@@ -205,6 +239,11 @@ class MappingSpec extends Specification {
       implicit val request = requestWithAccept("application/json")
       val result = mapping.status(200)("hello")
       contentType(result) must beSome("application/json")
+    }
+    "take 'text/javascript' and produce a jsonp response" in {
+      implicit val request = requestWithAccept("text/javascript")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/javascript")
     }
     "take 'text/xml' and produce a xml response" in {
       implicit val request = requestWithAccept("text/xml")
@@ -289,8 +328,7 @@ class MappingSpec extends Specification {
       contentType(result) must beSome("text/plain")
       status(result) must be_==(NOT_ACCEPTABLE)
       contentAsString(result) must be_==(
-        "bad: text/x-whatever supported: application/json, application/xml, " +
-        "text/xml, text/plain, text/html")
+        "bad: text/x-whatever supported: " + mapping.typeStrings.mkString(", "))
     }
   }
 
@@ -305,12 +343,30 @@ class MappingSpec extends Specification {
       m must beAnInstanceOf[SimpleMapping[String, scala.xml.NodeSeq]]
       m.typeStrings must contain("text/xml")
     }
+    "construct a mapping that takes a request parameter" in {
+      val m = mapping({ (s: String, r: Request[Any]) =>
+        Jsonp(r.queryString("callback").headOption.getOrElse("callback"),
+          toJson(Map("message" -> toJson(s))))
+      })
+      m must beAnInstanceOf[SimpleMapping[String, Jsonp]]
+      m.typeStrings must contain("text/javascript")
+    }
     "construct a mapping with one custom typeString" in {
       val m = mapping (
         "application/xml" -> {s: String => <root><message>{s}</message></root>}
       )
       m must beAnInstanceOf[SimpleMapping[String, scala.xml.NodeSeq]]
       m.typeStrings must contain("application/xml")
+    }
+    "construct a mapping with a typeString that takes a request parameter" in {
+      val m = mapping(
+        "application/javascript" -> ((s: String, r: Request[Any]) =>
+          Jsonp(r.queryString("callback").headOption.getOrElse("callback"),
+            toJson(Map("message" -> toJson(s))))
+        )
+      )
+      m must beAnInstanceOf[SimpleMapping[String, Jsonp]]
+      m.typeStrings must contain("application/javascript")
     }
     "construct a mapping with custom typeStrings" in {
       val m = mapping (
@@ -324,7 +380,13 @@ class MappingSpec extends Specification {
     "construct a composite mapping" in {
       val m = mapping (
         "application/xml" -> {s: String => <root><message>{s}</message></root>},
-        "application/json" -> {s: String => toJson(Map("message" -> toJson(s)))}
+        "application/json" -> {s: String =>
+          toJson(Map("message" -> toJson(s)))
+        },
+        "application/javascript" -> {(s: String, r: Request[Any]) =>
+          Jsonp(r.queryString("callback").headOption.getOrElse("callback"),
+            toJson(Map("message" -> toJson(s))))
+        }
       )
       m must beAnInstanceOf[CompositeMapping[String]]
       m.typeStrings must contain("application/json")
