@@ -29,9 +29,9 @@ class MappingSpec extends Specification {
   }
   // request helpers
   val emptyRequest = FakeRequest()
-  def requestWithAccept(accept: String) = {
+  def requestWithAccept(accept: String, path: String = "") = {
     implicit def map2seq(m: Map[String, Seq[String]]) = m.toSeq
-    FakeRequest("GET", "/", FakeHeaders(Map("Accept" -> Seq(accept))), "")
+    FakeRequest("GET", path, FakeHeaders(Map("Accept" -> Seq(accept))), "")
   }
   def requestWithQueryString(queryString: String) =
     FakeRequest("GET", "?" + queryString, FakeHeaders(), "")
@@ -99,6 +99,31 @@ class MappingSpec extends Specification {
       status(result) must be_==(NOT_ACCEPTABLE)
       contentAsString(result) must be_==(
         "bad: text/x-whatever supported: application/json")
+    }
+  }
+
+  "a json mapping with a query string override" should {
+    val mapping = jsonMapping queryStringOverride "accept"
+
+    "pass through the accept header when there is no override" in {
+      implicit val request = requestWithAccept("application/json")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("application/json")
+    }
+
+    "override to application/json even though the header says text/plain" in {
+      implicit val request = requestWithAccept("text/plain",
+        "?accept=application/json")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("application/json")
+    }
+
+    "fail with a 'text/x-whatever' override even though header says json" in {
+      implicit val request = requestWithAccept("application/json",
+        "?accept=text/x-whatever")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("text/plain")
+      status(result) must be_==(NOT_ACCEPTABLE)
     }
   }
 

@@ -26,7 +26,7 @@ trait Mapping[A] {
    * Not Acceptable' when the Accept header does not match any of the
    * available types. */
   def status(status: Int)(value: A)(implicit request: Request[Any]) = {
-    val acceptHeader = request.headers.get("Accept")
+    val acceptHeader = getAcceptHeader(request)
     val typeString: Option[String] = acceptHeader match {
       case Some(acceptHeader) => bestMatch(acceptHeader)
       case None => Some(defaultTypeString)
@@ -36,6 +36,10 @@ trait Mapping[A] {
         acceptHeader.get)))
       .withHeaders("Vary" -> "Accept")
   }
+
+  /** Get the accept header for this request */
+  def getAcceptHeader(request: Request[Any]) =
+    request.headers.get("Accept")
 
   /** Actual result creation, implemented by subclasses. */
   def getResult(status: Int, typeString: String, value: A,
@@ -63,6 +67,11 @@ trait Mapping[A] {
    * error body. */
   def notAcceptableBody(build: (String, Seq[String]) => String): Mapping[A] =
     new NotAcceptableBodyWrapper(this, build)
+
+  /** Get a new mapping that overrides the accept header with the value from a
+   * query parameter */
+  def queryStringOverride(queryParam: String): Mapping[A] =
+    new QueryStringOverrideWrapper(this, queryParam)
 }
 
 /** Wraps a mapping instance and delegates method calls to it. */
@@ -93,6 +102,14 @@ private class NotAcceptableBodyWrapper[A](wrapped: Mapping[A],
   /** Build the 406 body using the build function. */
   override def buildNotAcceptableBody(acceptHeader: String) =
     build(acceptHeader, typeStrings)
+}
+
+/** Wraps a mapping and overrides the accept header with a query parameter */
+private class QueryStringOverrideWrapper[A](wrapped: Mapping[A],
+    queryParam: String) extends MappingWrapper[A](wrapped) {
+  override def getAcceptHeader(request: Request[Any]): Option[String] =
+    request.queryString.getOrElse(queryParam, Nil).headOption
+      .orElse(wrapped.getAcceptHeader(request))
 }
 
 /** Mapping that is only able to create a single representation type. The
