@@ -73,6 +73,12 @@ class MappingSpec extends Specification {
       val result = mapping.status(200)("hello")
       header("Vary", result).get must contain("Accept")
     }
+    "fail with 400 Bad Request when the accept header is malformed" in {
+      implicit val request = requestWithAccept("bad_header")
+      val result = mapping.status(200)("hello")
+      status(result) must be_==(BAD_REQUEST)
+      contentAsString(result) must be_==("Invalid accept header: 'bad_header'")
+    }
   }
 
   "a json mapping with notAcceptableFallback" should {

@@ -27,14 +27,20 @@ trait Mapping[A] {
    * available types. */
   def status(status: Int)(value: A)(implicit request: Request[Any]) = {
     val acceptHeader = getAcceptHeader(request)
-    val typeString: Option[String] = acceptHeader match {
-      case Some(acceptHeader) => bestMatch(acceptHeader)
-      case None => Some(defaultTypeString)
-    }
-    typeString.map(getResult(status, _, value, request))
-      .getOrElse(Results.NotAcceptable(buildNotAcceptableBody(
-        acceptHeader.get)))
-      .withHeaders("Vary" -> "Accept")
+    (try {
+      acceptHeader
+        // if there is a header, get bestBatch, otherwise use the default type
+        .map(bestMatch _).getOrElse(Some(defaultTypeString))
+        // if type found, use it and build result
+        .map(getResult(status, _, value, request))
+        // otherwise build a 406 not acceptable
+        .getOrElse(Results.NotAcceptable(
+          buildNotAcceptableBody(acceptHeader.get)
+        ))
+    } catch {
+      case _: mimeparse.ParseException =>
+        Results.BadRequest("Invalid accept header: '" + acceptHeader.get + "'")
+    }).withHeaders("Vary" -> "Accept")
   }
 
   /** Get the accept header for this request */
