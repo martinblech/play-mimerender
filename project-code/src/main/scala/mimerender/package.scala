@@ -3,7 +3,7 @@ package object mimerender{
   val SHORT_MIME_MAP = Map(
     "xml"     -> Seq("application/xml", "text/xml", "application/x-xml"),
     "json"    -> Seq("application/json"),
-    "jsonp"   -> Seq("application/javascript"),
+    "jsonp"   -> Seq("application/javascript", "text/javascript"),
     "bson"    -> Seq("application/bson"),
     "msgpack" -> Seq("application/x-msgpack"),
     "yaml"    -> Seq("application/x-yaml", "text/x-yaml"),
