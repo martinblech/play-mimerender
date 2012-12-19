@@ -59,14 +59,20 @@ trait Mapping[A] {
   /** Get a new mapping that falls back to the default type instead of
    * faililng with 406. */
   def notAcceptableFallback: Mapping[A] =
-    new NotAcceptableFallbackWrapper(this)
+    new MappingWrapper(this) {
+      override def bestMatch(acceptHeader: String) =
+        wrapped.bestMatch(acceptHeader).orElse(Some(defaultTypeString))
+    }
 
   /** Get a new mapping that is able to build a custom body for 406 results.
    * The build function takes two arguments, the Accept string and the list
    * of supported types for this mapping, and must return a String with the
    * error body. */
   def notAcceptableBody(build: (String, Seq[String]) => String): Mapping[A] =
-    new NotAcceptableBodyWrapper(this, build)
+    new MappingWrapper(this) {
+      override def buildNotAcceptableBody(acceptHeader: String) =
+        build(acceptHeader, typeStrings)
+    }
 
   /** Get a new mapping that overrides the accept header with the value from a
    * query parameter */
@@ -78,47 +84,20 @@ trait Mapping[A] {
         contentType <- contentTypes find (typeStrings contains _)
       } yield (short -> contentType)) withDefault identity _
     })
-    new QueryStringOverrideWrapper(this, queryParam, expand_)
+    new MappingWrapper(this) {
+      override def getAcceptHeader(request: Request[Any]): Option[String] =
+        request.queryString.getOrElse(queryParam, Nil).headOption.map(expand_)
+          .orElse(wrapped.getAcceptHeader(request))
+    }
   }
 }
 
 /** Wraps a mapping instance and delegates method calls to it. */
-private class MappingWrapper[A](wrapped: Mapping[A]) extends Mapping[A] {
+private class MappingWrapper[A](val wrapped: Mapping[A]) extends Mapping[A] {
   override def typeStrings = wrapped.typeStrings
   override def getResult(status: Int, typeString: String, value: A,
       request: Request[Any]) =
     wrapped.getResult(status, typeString, value, request)
-}
-
-/** Wraps a mapping and falls back to the default type instead of failing
- * with 406. */
-private class NotAcceptableFallbackWrapper[A](wrapped: Mapping[A])
-    extends MappingWrapper[A](wrapped) {
-
-  /** Gets the wrapped mapping's best match, or else the default type string
-   * (but never None). */
-  override def bestMatch(acceptHeader: String) =
-    wrapped.bestMatch(acceptHeader).orElse(Some(defaultTypeString))
-}
-
-/** Wraps a mapping and uses the given build function to create a custom
- * body for 406 errors. */
-private class NotAcceptableBodyWrapper[A](wrapped: Mapping[A],
-    build: (String, Seq[String]) => String)
-    extends MappingWrapper[A](wrapped) {
-
-  /** Build the 406 body using the build function. */
-  override def buildNotAcceptableBody(acceptHeader: String) =
-    build(acceptHeader, typeStrings)
-}
-
-/** Wraps a mapping and overrides the accept header with a query parameter */
-private class QueryStringOverrideWrapper[A](wrapped: Mapping[A],
-    queryParam: String, expand: String => String = identity _)
-    extends MappingWrapper[A](wrapped) {
-  override def getAcceptHeader(request: Request[Any]): Option[String] =
-    request.queryString.getOrElse(queryParam, Nil).headOption.map(expand)
-      .orElse(wrapped.getAcceptHeader(request))
 }
 
 /** Mapping that is only able to create a single representation type. The
