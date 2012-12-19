@@ -81,7 +81,8 @@ trait Mapping[A] {
     }
 
   /** Get a new mapping that overrides the accept header with the value from a
-   * query parameter */
+   * query parameter. The optional expand function gets a chance to preprocess
+   * the value (when null, it defaults to SHORT_MIME_MAP). */
   def queryStringOverride(queryParam: String,
       expand: String => String = null): Mapping[A] = {
     val expand_ = Option(expand).getOrElse({
