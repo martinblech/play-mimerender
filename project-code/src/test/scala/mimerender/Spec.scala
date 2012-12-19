@@ -106,9 +106,9 @@ class MappingSpec extends Specification {
     val mapping = jsonMapping queryStringOverride "accept"
 
     "pass through the accept header when there is no override" in {
-      implicit val request = requestWithAccept("application/json")
+      implicit val request = requestWithAccept("text/x-whatever")
       val result = mapping.status(200)("hello")
-      contentType(result) must beSome("application/json")
+      status(result) must be_==(NOT_ACCEPTABLE)
     }
 
     "override to application/json even though the header says text/plain" in {
@@ -122,8 +122,23 @@ class MappingSpec extends Specification {
       implicit val request = requestWithAccept("application/json",
         "?accept=text/x-whatever")
       val result = mapping.status(200)("hello")
-      contentType(result) must beSome("text/plain")
       status(result) must be_==(NOT_ACCEPTABLE)
+    }
+
+    "expand 'json' to 'application/json'" in {
+      implicit val request = requestWithAccept("text/plain",
+        "?accept=json")
+      val result = mapping.status(200)("hello")
+      contentType(result) must beSome("application/json")
+    }
+
+    "expand 'jsobject' (custom expansion) to 'application/json'" in {
+      implicit val request = requestWithAccept("text/plain",
+        "?accept=jsobject")
+      val result = mapping.queryStringOverride("accept", Map(
+        "jsobject" -> "application/json"
+      )).status(200)("hello")
+      contentType(result) must beSome("application/json")
     }
   }
 

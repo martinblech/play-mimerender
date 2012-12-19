@@ -70,8 +70,16 @@ trait Mapping[A] {
 
   /** Get a new mapping that overrides the accept header with the value from a
    * query parameter */
-  def queryStringOverride(queryParam: String): Mapping[A] =
-    new QueryStringOverrideWrapper(this, queryParam)
+  def queryStringOverride(queryParam: String,
+      expand: String => String = null): Mapping[A] = {
+    val expand_ = Option(expand).getOrElse({
+      (for {
+        (short, contentTypes) <- SHORT_MIME_MAP
+        contentType <- contentTypes find (typeStrings contains _)
+      } yield (short -> contentType)) withDefault identity _
+    })
+    new QueryStringOverrideWrapper(this, queryParam, expand_)
+  }
 }
 
 /** Wraps a mapping instance and delegates method calls to it. */
@@ -106,9 +114,10 @@ private class NotAcceptableBodyWrapper[A](wrapped: Mapping[A],
 
 /** Wraps a mapping and overrides the accept header with a query parameter */
 private class QueryStringOverrideWrapper[A](wrapped: Mapping[A],
-    queryParam: String) extends MappingWrapper[A](wrapped) {
+    queryParam: String, expand: String => String = identity _)
+    extends MappingWrapper[A](wrapped) {
   override def getAcceptHeader(request: Request[Any]): Option[String] =
-    request.queryString.getOrElse(queryParam, Nil).headOption
+    request.queryString.getOrElse(queryParam, Nil).headOption.map(expand)
       .orElse(wrapped.getAcceptHeader(request))
 }
 
