@@ -16,6 +16,9 @@
  */
 package object mimeparse {
 
+  case class ParseException(msg: String, cause: Throwable)
+    extends IllegalArgumentException(msg, cause)
+
   private type FitnessAndQuality = (Int, Float)
 
   private case class ParseResults(fullType: String, _type: String,
@@ -40,23 +43,25 @@ package object mimeparse {
   private val paramSplitter = "\\s*(.*?)\\s*=\\s*(.*?)\\s*".r
 
   private def parseMediaRange(mimeType: String): ParseResults = {
-    val trimmed = mimeType.trim
-    // split into rawFullType and rawParams using ';' as separator
-    val Array(rawFullType, rawParams @ _*) = paramSeparator.split(trimmed)
-    // expand * to */*
-    val fullType = if (rawFullType == "*") "*/*" else rawFullType
-    // split fullType into type and subType using '/' as separator
-    val typeSplitter(_type, subType) = fullType
-    // build params Map
-    val params = rawParams.map({ case paramSplitter(k, v) => (k, v) }).toMap
-    // extract q from map and fallback to 1 if outside range or invalid
-    val safeQ = try { 
-      val q = params("q").toFloat
-      if (q >=0 && q <=1) q else 1f
+    try {
+      val trimmed = mimeType.trim
+      // split into rawFullType and rawParams using ';' as separator
+      val Array(rawFullType, rawParams @ _*) = paramSeparator.split(trimmed)
+      // expand * to */*
+      val fullType = if (rawFullType == "*") "*/*" else rawFullType
+      // split fullType into type and subType using '/' as separator
+      val typeSplitter(_type, subType) = fullType
+      // build params Map
+      val params = rawParams.map({ case paramSplitter(k, v) => (k, v) }).toMap
+      // extract q from map and fallback to 1 if outside range
+      val q = { 
+        val q = params.getOrElse("q", "1").toFloat
+        if (q >=0 && q <=1) q else 1f
+      }
+      ParseResults(trimmed, _type, subType, q, params - "q")
     } catch {
-      case _ => 1f
+      case e: Throwable => throw new ParseException(mimeType, e)
     }
-    ParseResults(trimmed, _type, subType, safeQ, params - "q")
   }
 
   private def fitnessAndQuality(mimeType: ParseResults,
