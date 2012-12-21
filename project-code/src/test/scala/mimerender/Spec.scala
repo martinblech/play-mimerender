@@ -2,7 +2,7 @@ package mimerender
 
 import play.api.test._
 import play.api.test.Helpers._
-import play.api.mvc.{Result, Request}
+import play.api.mvc.{Result, RequestHeader}
 import play.api.http.Writeable
 import play.api.libs.Jsonp
 import play.api.libs.json._
@@ -16,13 +16,13 @@ class MappingSpec extends Specification {
   "the SimpleMapping constructor" should {
     "use the implicit Writeable's typeString by default" in {
       val mapping = new SimpleMapping(None,
-        { (_: Any, _: Request[Any]) => <root/> }
+        { (_: Any, _: RequestHeader) => <root/> }
       )
       mapping.typeStrings must be_==(Seq("text/xml"))
     }
     "override the Writeable's typeString when needed" in {
       val mapping = new SimpleMapping(Some(Seq("application/xml")),
-        { (_: Any, _: Request[Any]) => <root/> }
+        { (_: Any, _: RequestHeader) => <root/> }
       )
       mapping.typeStrings must be_==(Seq("application/xml"))
     }
@@ -37,7 +37,7 @@ class MappingSpec extends Specification {
     FakeRequest("GET", "?" + queryString, FakeHeaders(), "")
 
   // JSON Mapping with default typeString (provided by the implicit writeable)
-  val jsonMapping = new SimpleMapping(None, { (s: String, _: Request[Any]) =>
+  val jsonMapping = new SimpleMapping(None, { (s: String, _: RequestHeader) =>
     toJson(Map("message" -> toJson(s)))
   })
   "a json mapping" should {
@@ -149,7 +149,7 @@ class MappingSpec extends Specification {
   }
 
   // JSONP Mapping
-  val jsonpMapping = new SimpleMapping(None, { (s: String, r: Request[Any]) =>
+  val jsonpMapping = new SimpleMapping(None, { (s: String, r: RequestHeader) =>
     val callback = r.queryString.getOrElse("callback", Seq())
       .headOption.getOrElse("callback")
     Jsonp(callback,
@@ -176,7 +176,7 @@ class MappingSpec extends Specification {
 
   // XML Mapping with explicit typeStrings
   val xmlMapping = new SimpleMapping(Some(Seq("application/xml", "text/xml")),
-    { (s: String, _: Request[Any]) => <root><value>{s}</value></root> })
+    { (s: String, _: RequestHeader) => <root><value>{s}</value></root> })
   "a xml mapping" should {
     val mapping = xmlMapping
     "have 'application/xml' and 'text/xml' among the typeStrings" in {
@@ -214,7 +214,7 @@ class MappingSpec extends Specification {
 
   // TXT Mapping with default typeString (provided by the implicit writeable)
   val txtMapping = new SimpleMapping(None,
-    { (value: String, _:Request[Any]) => value }
+    { (value: String, _:RequestHeader) => value }
   )
   "a txt mapping" should {
     val mapping = txtMapping
@@ -240,7 +240,7 @@ class MappingSpec extends Specification {
   }
 
   // HTML Mapping with default typeString (provided by the implicit writeable)
-  val htmlMapping = new SimpleMapping(None, { (s: String, _: Request[Any]) =>
+  val htmlMapping = new SimpleMapping(None, { (s: String, _: RequestHeader) =>
     new play.api.templates.Html("<html><body>" + s + "</body></html>")
   })
   "a html mapping" should {
@@ -390,7 +390,7 @@ class MappingSpec extends Specification {
       m.typeStrings must contain("text/xml")
     }
     "construct a mapping that takes a request parameter" in {
-      val m = mapping({ (s: String, r: Request[Any]) =>
+      val m = mapping({ (s: String, r: RequestHeader) =>
         Jsonp(r.queryString("callback").headOption.getOrElse("callback"),
           toJson(Map("message" -> toJson(s))))
       })
@@ -406,7 +406,7 @@ class MappingSpec extends Specification {
     }
     "construct a mapping with a typeString that takes a request parameter" in {
       val m = mapping(
-        "application/javascript" -> ((s: String, r: Request[Any]) =>
+        "application/javascript" -> ((s: String, r: RequestHeader) =>
           Jsonp(r.queryString("callback").headOption.getOrElse("callback"),
             toJson(Map("message" -> toJson(s))))
         )
@@ -429,7 +429,7 @@ class MappingSpec extends Specification {
         "application/json" -> {s: String =>
           toJson(Map("message" -> toJson(s)))
         },
-        "application/javascript" -> {(s: String, r: Request[Any]) =>
+        "application/javascript" -> {(s: String, r: RequestHeader) =>
           Jsonp(r.queryString("callback").headOption.getOrElse("callback"),
             toJson(Map("message" -> toJson(s))))
         }

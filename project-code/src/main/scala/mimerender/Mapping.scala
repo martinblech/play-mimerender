@@ -3,7 +3,7 @@ package mimerender
 import scala.collection.JavaConversions._
 
 import play.api.http.{Writeable, ContentTypeOf}
-import play.api.mvc.{PlainResult, Results, Request}
+import play.api.mvc.{PlainResult, Results, RequestHeader}
 
 import mimeparse.Matcher
 
@@ -25,7 +25,7 @@ trait Mapping[A] {
    * the best available representation for the A value. Returns a '406
    * Not Acceptable' when the Accept header does not match any of the
    * available types. */
-  def status(status: Int)(value: A)(implicit request: Request[Any]) = {
+  def status(status: Int)(value: A)(implicit request: RequestHeader) = {
     val acceptHeader = getAcceptHeader(request)
     (try {
       acceptHeader
@@ -44,12 +44,12 @@ trait Mapping[A] {
   }
 
   /** Get the accept header for this request */
-  def getAcceptHeader(request: Request[Any]) =
+  def getAcceptHeader(request: RequestHeader) =
     request.headers.get("Accept")
 
   /** Actual result creation, implemented by subclasses. */
   def getResult(status: Int, typeString: String, value: A,
-    request: Request[Any]): PlainResult
+    request: RequestHeader): PlainResult
 
   private lazy val matcher = new Matcher(typeStrings)
 
@@ -92,7 +92,7 @@ trait Mapping[A] {
       } yield (short -> contentType)) withDefault identity _
     })
     new MappingWrapper(this) {
-      override def getAcceptHeader(request: Request[Any]): Option[String] =
+      override def getAcceptHeader(request: RequestHeader): Option[String] =
         request.queryString.getOrElse(queryParam, Nil).headOption.map(expand_)
           .orElse(wrapped.getAcceptHeader(request))
     }
@@ -103,7 +103,7 @@ trait Mapping[A] {
 private class MappingWrapper[A](val wrapped: Mapping[A]) extends Mapping[A] {
   override def typeStrings = wrapped.typeStrings
   override def getResult(status: Int, typeString: String, value: A,
-      request: Request[Any]) =
+      request: RequestHeader) =
     wrapped.getResult(status, typeString, value, request)
 }
 
@@ -114,7 +114,7 @@ private class MappingWrapper[A](val wrapped: Mapping[A]) extends Mapping[A] {
  * several equivalent strings (e.g. text/xml and application/xml). */
 class SimpleMapping[A, B](
     customTypeStrings: Option[Seq[String]],
-    transform: (A, Request[Any]) => B)
+    transform: (A, RequestHeader) => B)
     (implicit writeable: Writeable[B],
               contentTypeOf: ContentTypeOf[B]) extends Mapping[A] {
 
@@ -125,7 +125,7 @@ class SimpleMapping[A, B](
   /** Get a result where the body is value transformed by the transform
    * function and the content type is the given typeString. */
   override def getResult(status: Int, typeString: String, value: A,
-      request: Request[Any]) = 
+      request: RequestHeader) = 
     Results.Status(status)(transform(value, request))(
       writeable, contentTypeOf).as(typeString)
 
@@ -157,7 +157,7 @@ class CompositeMapping[A](mappings: Seq[Mapping[A]]) extends Mapping[A] {
 
   /** Find the sub-mapping for the given typeString and delegate. */
   override def getResult(status: Int, typeString: String, value: A,
-      request: Request[Any]) =
+      request: RequestHeader) =
     mappingsByTypeString(typeString).getResult(
       status, typeString, value, request)
 }
