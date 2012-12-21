@@ -48,11 +48,19 @@ object Global extends GlobalSettings {
     }
   }
 
-  case class NotFoundException(message: String = null, cause: Throwable = null)
+  case class NotFound(message: String = null, cause: Throwable = null)
     extends RuntimeException(message, cause)
 
-  override def onHandlerNotFound(request: RequestHeader): PlainResult = {
+  override def onHandlerNotFound(request: RequestHeader) = {
     implicit val req = request
-    m.status(NOT_FOUND)(new NotFoundException("not found: " + request.path))
+    m.status(NOT_FOUND)(new NotFound(request.path))
+  }
+
+  case class BadRequest(message: String = null, cause: Throwable = null)
+    extends RuntimeException(message, cause)
+
+  override def onBadRequest(request: RequestHeader, error: String) = {
+    implicit val req = request
+    m.status(BAD_REQUEST)(new BadRequest(error))
   }
 }

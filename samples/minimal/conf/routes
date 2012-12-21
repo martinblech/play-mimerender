@@ -4,3 +4,4 @@
 
 # Home page
 GET     /             controllers.Application.index(name: String ?= "world")
+GET     /strict       controllers.Application.index(name: String)
