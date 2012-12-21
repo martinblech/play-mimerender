@@ -47,4 +47,12 @@ object Global extends GlobalSettings {
       case _ => super.onError(request, ex)
     }
   }
+
+  case class NotFoundException(message: String = null, cause: Throwable = null)
+    extends RuntimeException(message, cause)
+
+  override def onHandlerNotFound(request: RequestHeader): PlainResult = {
+    implicit val req = request
+    m.status(NOT_FOUND)(new NotFoundException("not found: " + request.path))
+  }
 }
