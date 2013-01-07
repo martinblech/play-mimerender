@@ -3,27 +3,19 @@ import Keys._
 
 object MimerenderBuild extends Build {
   lazy val playVersionToScalaVersion = Map(
-    "2.1-RC1" -> "2.10.0-RC5"
+    "2.1-RC1" -> "2.10.0"
   ).withDefaultValue("2.9.1")
 
   lazy val playVersion = sys.env.get("PLAY_VERSION").getOrElse("[2.0.1, 2.1)")
 
-  lazy val scalaVersion_ = playVersionToScalaVersion(playVersion)
-
-  lazy val playScalaVersion = scalaVersion_.split("\\.0")(0)
-
   lazy val dependencies = Seq(
-    "play" % ("play_" + playScalaVersion) % playVersion,
-    "play" % ("play-test_" + playScalaVersion) % playVersion
+    "play" %% "play" % playVersion,
+    "play" %% "play-test" % playVersion
   )
 
-  lazy val root = Project(id = "mimerender",
-                          base = file(".")).settings(
-    crossPaths := false,
-    organization := "mimerender",
-    name := "mimerender_" + playScalaVersion,
-    scalaVersion := scalaVersion_,
-    version := "0.1.2",
+  lazy val root = Project("mimerender", file(".")).settings(
+    scalaVersion := playVersionToScalaVersion(playVersion),
+    version := "0.1.3",
     resolvers += "Typesafe repository" at
       "http://repo.typesafe.com/typesafe/releases/",
     libraryDependencies := dependencies
