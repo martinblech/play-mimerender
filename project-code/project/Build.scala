@@ -15,7 +15,7 @@ object MimerenderBuild extends Build {
 
   lazy val root = Project("mimerender", file(".")).settings(
     scalaVersion := playVersionToScalaVersion(playVersion),
-    version := "0.1.2",
+    version := "0.1.3",
     resolvers += "Typesafe repository" at
       "http://repo.typesafe.com/typesafe/releases/",
     libraryDependencies := dependencies
